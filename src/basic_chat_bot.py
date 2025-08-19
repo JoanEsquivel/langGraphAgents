@@ -1,12 +1,16 @@
 # From: https://langchain-ai.github.io/langgraph/tutorials/get-started/1-build-basic-chatbot/#prerequisites
-import os
-
 from typing import Annotated
 from typing_extensions import TypedDict
 
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
 from langchain_ollama.chat_models import ChatOllama
+
+# Import utility functions for LangChain/LangSmith setup
+from utils import setup_langsmith
+
+# Setup LangSmith tracing (loads .env and displays status)
+setup_langsmith()
 
 llm = ChatOllama(
     model="qwen2.5:7b-instruct",

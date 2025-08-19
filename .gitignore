@@ -1,1 +1,4 @@
 venv_foundational_agents/
+.env
+src/__pycache__/
+src/utils/__pycache__/
