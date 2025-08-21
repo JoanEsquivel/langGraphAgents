@@ -2,3 +2,5 @@ venv_foundational_agents/
 .env
 src/__pycache__/
 src/utils/__pycache__/
+tests/__pycache__/
+pytest_cache/
