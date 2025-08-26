@@ -8,7 +8,7 @@ from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.checkpoint.memory import InMemorySaver
 from langchain_ollama.chat_models import ChatOllama
 
-# Import utility functions for LangChain/LangSmith and Tavily setup
+# Import utility functions for LangChain/LangSmith and Tavil y setup
 from utils import setup_langsmith, setup_tavily
 
 # Setup LangSmith tracing (loads .env and displays status)
@@ -119,28 +119,7 @@ if __name__ == "__main__":
     
     current_thread = DEFAULT_THREAD_ID
     
-    # 4. Ask a follow up question (following tutorial step 4)
-    # Demonstrate memory with initial examples from tutorial
-    print(f"\n🔬 Demo: Testing memory functionality (Thread {current_thread})")
-    
-    # Example 1: Introduce name
-    user_input = "Hi there! My name is Will."
-    print(f"User: {user_input}")
-    stream_graph_updates(user_input, current_thread)
-    
-    # Example 2: Test memory
-    user_input = "Remember my name?"
-    print(f"User: {user_input}")
-    stream_graph_updates(user_input, current_thread)
-    
-    print(f"\n🔬 Demo: Testing different thread (Thread 2)")
-    # Example 3: Different thread should NOT remember
-    user_input = "Remember my name?"
-    print(f"User: {user_input}")
-    stream_graph_updates(user_input, "2")
-    
     print(f"\n💬 Interactive mode (Thread {current_thread})")
-    print("Try asking about your name again to see memory working!")
     
     while True:
         try:
