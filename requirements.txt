@@ -3,3 +3,7 @@ langsmith==0.4.14
 langchain-ollama
 python-dotenv==1.0.1
 langchain-tavily
+ragas
+pytest
+pytest-asyncio
+requests

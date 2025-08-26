@@ -535,6 +535,240 @@ User: quit
 Goodbye!
 ```
 
+## 🧪 RAGAS Agent Evaluation Framework
+
+This project includes a comprehensive RAGAS-based evaluation framework for testing the agent's performance using industry-standard metrics. The evaluation focuses on the `3_basic_chat_bot_with_tools_memory.py` script and measures three key aspects of agent behavior.
+
+### 📊 Evaluation Metrics Overview
+
+| Metric | Purpose | Score Range | Threshold | Key Evaluation |
+|--------|---------|-------------|-----------|----------------|
+| **Topic Adherence** | Measures how well the agent stays within predefined topics | 0.0 - 1.0 | ≥ 0.7 | Topical consistency and appropriate redirections |
+| **Tool Call Accuracy** | Evaluates the correctness of tool usage and parameters | 0.0 - 1.0 | ≥ 0.8 | Tool selection precision and parameter accuracy |
+| **Agent Goal Accuracy** | Assesses how effectively the agent achieves user goals | 0.0 - 1.0 | ≥ 0.7 | Goal understanding and fulfillment quality |
+
+### 🎯 Topic Adherence
+
+**What it measures**: The agent's ability to maintain conversation within appropriate topics and handle off-topic requests gracefully.
+
+#### ✅ High Score Indicators (0.7-1.0)
+- Stays focused on technology, science, news, weather, and information topics
+- Appropriately redirects off-topic personal questions
+- Maintains professional boundaries while being helpful
+- Consistent topic focus across multi-turn conversations
+
+#### ❌ Low Score Indicators (0.0-0.6)
+- Engages with inappropriate personal or off-topic requests
+- Frequently strays from the intended conversation domain
+- Inconsistent topic handling across conversation turns
+- Fails to redirect inappropriate requests professionally
+
+#### 🔧 Action Items for Low Scores
+- **Score 0.5-0.6**: Review agent prompts for clearer topic guidance
+- **Score 0.3-0.4**: Implement stronger topic filtering and redirection logic
+- **Score 0.0-0.2**: Redesign agent instructions with explicit topic boundaries
+
+### 🛠️ Tool Call Accuracy
+
+**What it measures**: The precision with which the agent selects and uses available tools to fulfill user requests.
+
+#### ✅ High Score Indicators (0.8-1.0)
+- Correctly identifies when search tools are needed
+- Provides accurate and relevant search parameters
+- Uses appropriate tools for specific types of queries
+- Avoids unnecessary tool calls for simple questions
+
+#### ❌ Low Score Indicators (0.0-0.7)
+- Fails to use search tools when external information is needed
+- Provides irrelevant or poorly constructed search queries
+- Uses tools inappropriately for simple questions
+- Incorrect tool parameter formatting
+
+#### 🔧 Action Items for Low Scores
+- **Score 0.6-0.7**: Improve tool selection criteria and parameter validation
+- **Score 0.4-0.5**: Enhance query processing and tool routing logic
+- **Score 0.0-0.3**: Redesign tool integration with clearer usage patterns
+
+### 🎯 Agent Goal Accuracy
+
+**What it measures**: How effectively the agent understands and fulfills the user's underlying objectives and goals.
+
+#### ✅ High Score Indicators (0.7-1.0)
+- Provides comprehensive responses that address user's specific needs
+- Successfully completes information gathering and research tasks
+- Demonstrates understanding of complex, multi-part requests
+- Delivers actionable and relevant information
+
+#### ❌ Low Score Indicators (0.0-0.6)
+- Provides incomplete or irrelevant responses to user requests
+- Fails to address the core objectives of user queries
+- Misunderstands complex requests or multi-part questions
+- Delivers low-quality or insufficient information
+
+#### 🔧 Action Items for Low Scores
+- **Score 0.5-0.6**: Improve response comprehensiveness and relevance checking
+- **Score 0.3-0.4**: Enhance goal understanding and multi-objective handling
+- **Score 0.0-0.2**: Redesign agent architecture with better intent recognition
+
+### 🧪 Test Suite Structure
+
+```
+tests/
+├── test_topic_adherence.py          # Simple topic adherence test
+├── test_tool_call_accuracy.py       # Simple tool call accuracy test
+├── test_agent_goal_accuracy.py      # Simple agent goal accuracy test
+├── conftest.py                      # Simple test configuration
+└── pytest.ini                      # Pytest configuration
+```
+
+### 📝 Simple Test Examples
+
+Each test follows the RAGAS example pattern with clear, realistic scenarios:
+
+#### **1. Topic Adherence Test** (`test_topic_adherence_weather_to_offtopic`)
+```python
+# Conversation starts with weather (appropriate topic)
+# Then user asks about personal problems (off-topic)
+# Tests if agent redirects appropriately while staying professional
+
+HumanMessage: "Can you check the current weather in San Francisco?"
+AIMessage: Uses tavily_search_results_json to search weather
+HumanMessage: "What do you think about my relationship problems?"  # Off-topic!
+AIMessage: "I'm designed to help with information search... recommend counselor"  # Good redirect
+```
+
+#### **2. Tool Call Accuracy Test** (`test_tool_call_accuracy_weather_search`)  
+```python
+# Tests if agent uses correct tools with appropriate parameters
+
+HumanMessage: "What's the weather like in New York right now?"
+AIMessage: ToolCall(name="tavily_search_results_json", args={"query": "current weather New York"})
+HumanMessage: "Can you also check tomorrow's forecast?"  
+AIMessage: ToolCall(name="tavily_search_results_json", args={"query": "weather forecast tomorrow New York"})
+
+# Compares against reference_tool_calls to verify accuracy
+```
+
+#### **3. Agent Goal Accuracy Test** (`test_agent_goal_accuracy_research_task`)
+```python
+# Tests if agent achieves user's research goal comprehensively
+
+HumanMessage: "I need to research electric vehicles for a school project"
+AIMessage: Searches for EV benefits, then market data
+AIMessage: Provides organized summary with benefits + market statistics
+
+# Goal: "Comprehensive research information provided about electric vehicles"
+# Agent should fulfill this goal completely
+```
+
+### 🚀 Running the Evaluation
+
+#### Prerequisites
+```bash
+# Install evaluation dependencies
+pip install -r requirements.txt
+
+# Ensure agent dependencies are available
+# - Ollama server running with qwen2.5:7b-instruct model
+# - Optional: Tavily API key for tool testing
+```
+
+#### Execute Complete Evaluation
+```bash
+# Run all 3 simple tests
+pytest tests/test_topic_adherence.py tests/test_tool_call_accuracy.py tests/test_agent_goal_accuracy.py -v
+
+# Run individual tests
+pytest tests/test_topic_adherence.py::test_topic_adherence_weather_to_offtopic -v
+pytest tests/test_tool_call_accuracy.py::test_tool_call_accuracy_weather_search -v  
+pytest tests/test_agent_goal_accuracy.py::test_agent_goal_accuracy_research_task -v
+
+# Run with detailed output to see scores
+pytest tests/ -v -s
+```
+
+#### Sample Test Output
+```bash
+$ pytest tests/test_topic_adherence.py::test_topic_adherence_weather_to_offtopic -v -s
+
+================================== test session starts ===================================
+tests/test_topic_adherence.py::test_topic_adherence_weather_to_offtopic 
+
+🎯 Topic Adherence Score: 1.000
+✅ Expected: Agent should stay focused on weather/information topics
+✅ Expected: Agent should redirect personal/off-topic questions appropriately
+✅ PASSED: Topic adherence score 1.000 meets threshold
+
+PASSED
+
+$ pytest tests/test_tool_call_accuracy.py::test_tool_call_accuracy_weather_search -v -s
+
+🔧 Tool Call Accuracy Score: 1.000
+✅ Expected: Agent should use tavily_search_results_json for weather queries
+✅ Expected: Agent should provide appropriate search parameters
+✅ PASSED: Tool call accuracy score 1.000 meets threshold
+
+PASSED
+
+$ pytest tests/test_agent_goal_accuracy.py::test_agent_goal_accuracy_research_task -v -s
+
+🎯 Agent Goal Accuracy Score: 1.000
+✅ Expected: Agent should provide comprehensive EV information
+✅ Expected: Agent should address both benefits and market data
+✅ Expected: Information should be suitable for school project
+✅ PASSED: Agent goal accuracy score 1.000 meets threshold
+
+PASSED
+```
+
+### 📈 Performance Interpretation Guide
+
+#### 🟢 Excellent Performance (0.9-1.0)
+- **Topic Adherence**: Agent maintains perfect topic boundaries
+- **Tool Accuracy**: Flawless tool selection and parameter usage  
+- **Goal Accuracy**: Consistently exceeds user expectations
+
+#### 🟡 Good Performance (0.7-0.8)
+- **Topic Adherence**: Mostly stays on topic with minor deviations
+- **Tool Accuracy**: Generally correct tool usage with occasional parameter issues
+- **Goal Accuracy**: Usually fulfills goals but may miss some nuances
+
+#### 🟠 Needs Improvement (0.5-0.6)
+- **Topic Adherence**: Frequent topic drift requiring intervention
+- **Tool Accuracy**: Tool selection issues affecting response quality
+- **Goal Accuracy**: Partially addresses goals but lacks completeness
+
+#### 🔴 Requires Immediate Attention (0.0-0.4)
+- **Topic Adherence**: Significant off-topic behavior
+- **Tool Accuracy**: Major tool usage failures
+- **Goal Accuracy**: Consistently fails to meet user objectives
+
+### 🎯 Key Features
+
+- **✅ Simple & Clear**: Each test is one straightforward scenario
+- **📖 RAGAS Pattern**: Follows official RAGAS examples exactly  
+- **🔧 Realistic**: Uses actual agent tools (`tavily_search_results_json`)
+- **⚡ Fast**: Direct evaluation without complex setup
+- **🎨 Visual Output**: Clear pass/fail with score display
+
+### 💡 Understanding the Scores
+
+- **Score 1.000**: Perfect performance (ideal scenario)
+- **Score 0.8+**: Excellent performance 
+- **Score 0.7+**: Good performance (meets threshold)
+- **Score 0.5-0.6**: Needs improvement
+- **Score <0.5**: Requires attention
+
+### 🔧 Customizing Tests
+
+To modify thresholds, edit the assert statements:
+```python
+# In any test file
+assert score >= 0.7  # Change threshold as needed
+```
+
+To add new scenarios, create similar conversation patterns following the RAGAS examples.
+
 ## 🔧 Environment Configuration
 
 ### LangSmith Tracing (Optional)
