@@ -165,17 +165,51 @@ def format_conversation_history(thread_id: str = DEFAULT_THREAD_ID):
 
 def get_conversation_for_ragas(thread_id: str = DEFAULT_THREAD_ID):
     """
-    Return the actual conversation history message objects for agent_topic_adherence metric.
+    Return conversation in RAGAS format for TopicAdherenceScore and other RAGAS metrics.
     Can be directly assigned to a variable like: sample_input_4 = get_conversation_for_ragas()
     
     Returns:
-        List of actual LangChain message objects (HumanMessage, AIMessage, ToolMessage)
+        List of RAGAS message objects (ragas.messages.HumanMessage, AIMessage, ToolMessage)
     """
+    if not RAGAS_AVAILABLE:
+        print("❌ Ragas not available. Cannot convert to ragas format.")
+        return []
+    
     snapshot = get_graph_state(thread_id)
     messages = snapshot.values.get("messages", [])
     
-    # Return the actual message objects, not string representations
-    return messages
+    ragas_messages = []
+    
+    for message in messages:
+        if hasattr(message, 'type'):
+            if message.type == 'human':
+                ragas_messages.append(RagasHumanMessage(content=message.content))
+            elif message.type == 'ai':
+                # Check if the AI message has tool calls
+                if hasattr(message, 'tool_calls') and message.tool_calls:
+                    tool_calls = []
+                    for tc in message.tool_calls:
+                        tool_calls.append(RagasToolCall(
+                            name=tc.get("name", ""),
+                            args=tc.get("args", {})
+                        ))
+                    ragas_messages.append(RagasAIMessage(
+                        content=message.content,
+                        tool_calls=tool_calls
+                    ))
+                else:
+                    ragas_messages.append(RagasAIMessage(content=message.content))
+            elif message.type == 'tool':
+                ragas_messages.append(RagasToolMessage(content=message.content))
+        else:
+            # Fallback for messages that don't have a type attribute
+            if hasattr(message, 'role'):
+                if message.role == 'user':
+                    ragas_messages.append(RagasHumanMessage(content=message.content))
+                elif message.role == 'assistant':
+                    ragas_messages.append(RagasAIMessage(content=message.content))
+    
+    return ragas_messages
 
 
 def get_conversation_for_tool_accuracy(thread_id: str = DEFAULT_THREAD_ID):
