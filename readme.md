@@ -266,14 +266,6 @@ This section shows the **exact output** from the new unified RAGAS method using 
 |--------|---------|----------|-------------------|
 | `getMultiTurnSampleConversation()` | `MultiTurnSample` | **ALL RAGAS metrics** | ✅ Universal RAGAS compatibility |
 
-### 🔧 Migration Guide - OLD vs NEW
-
-| OLD Methods (DEPRECATED) | NEW Method |
-|-------------------------|------------|
-| `get_conversation_for_ragas()` ⚠️ | `getMultiTurnSampleConversation()` ✅ |
-| `get_conversation_for_tool_accuracy()` ⚠️ | `getMultiTurnSampleConversation()` ✅ |
-| `get_conversation_for_goal_accuracy()` ⚠️ | `getMultiTurnSampleConversation()` ✅ |
-
 ### 🧪 Test Conversation Used
 
 **Real conversation from actual test runs** (verified working with perfect scores):
@@ -370,21 +362,6 @@ sample.reference = "Agent should research and provide comprehensive summary of t
 scorer = AgentGoalAccuracyWithReference(llm=evaluator_llm)
 score = await scorer.multi_turn_ascore(sample)  # ✅ Score: 1.000 - PERFECT!
 ```
-
----
-
-## ⚠️ DEPRECATED Methods (Still Available for Backward Compatibility)
-
-The following methods are deprecated but still work. They will show deprecation warnings.
-
-### Legacy Functions
-```python
-get_conversation_for_ragas(thread_id)           # ⚠️ DEPRECATED
-get_conversation_for_tool_accuracy(thread_id)   # ⚠️ DEPRECATED  
-get_conversation_for_goal_accuracy(thread_id)   # ⚠️ DEPRECATED
-```
-
-**👉 Recommendation**: Use `getMultiTurnSampleConversation()` for all new code.
 
 ---
 
@@ -490,40 +467,101 @@ getMultiTurnSampleConversation(thread_id)  # → ragas.dataset_schema.MultiTurnS
 
 1. **ONE METHOD RULES ALL**: Single method for every RAGAS metric ✅
 2. **PERFECT SCORES**: All tests achieve 1.000 scores with real data ✅  
-3. **SIMPLIFIED WORKFLOW**: No more choosing between different functions ✅
-4. **BACKWARD COMPATIBLE**: Old methods still work but show deprecation warnings ⚠️
-5. **PRODUCTION READY**: Tested with actual agent conversations and web search results ✅
-
-### 🔄 Migration Path
-
-**Old Code (DEPRECATED):**
-```python
-# Topic adherence
-conversation = get_conversation_for_ragas(thread_id)  # ⚠️ DEPRECATED
-sample = MultiTurnSample(user_input=conversation, reference_topics=[...])
-
-# Tool accuracy  
-conversation = get_conversation_for_tool_accuracy(thread_id)  # ⚠️ DEPRECATED
-sample = MultiTurnSample(user_input=conversation, reference_tool_calls=[...])
-
-# Goal achievement
-sample = get_conversation_for_goal_accuracy(thread_id)  # ⚠️ DEPRECATED
-```
-
-**New Code (RECOMMENDED):**
-```python
-# ALL METRICS - Same method, different reference fields
-sample = getMultiTurnSampleConversation(thread_id)  # ✅ UNIFIED METHOD
-
-# Then set the appropriate reference:
-sample.reference_topics = [...]      # For topic adherence
-sample.reference_tool_calls = [...]  # For tool accuracy
-sample.reference = "..."             # For goal achievement
-```
+3. **SIMPLIFIED WORKFLOW**: Unified approach for all evaluation metrics ✅
+4. **PRODUCTION READY**: Tested with actual agent conversations and web search results ✅
 
 ---
 
-**🎯 Bottom Line**: Use `getMultiTurnSampleConversation()` for ALL RAGAS evaluation. It's simpler, more flexible, and achieves perfect scores with real agent conversations!
+**🎯 Bottom Line**: Use `getMultiTurnSampleConversation()` for ALL RAGAS evaluation. This unified method achieves perfect scores with real agent conversations!
+
+---
+
+## 📊 RAGAS Metrics Explained
+
+### Understanding Each Test Metric
+
+#### 1. 🎯 **Topic Adherence Score**
+**What it measures:** How well the agent stays focused on the specified topics throughout the conversation without deviating to unrelated subjects.
+
+**How it works:** 
+- Compares agent responses against a predefined list of reference topics
+- Uses LLM evaluation in "recall" mode to assess topic consistency
+- Scores range from 0.0 (completely off-topic) to 1.0 (perfectly on-topic)
+
+**Example:** If reference topics are `["functional testing", "API testing", "automation"]` and the agent discusses weather or sports, the score drops significantly.
+
+#### 2. 🛠️ **Tool Call Accuracy** 
+**What it measures:** How accurately the agent uses available tools (like web search) when needed and whether tool calls are appropriate for the given task.
+
+**How it works:**
+- Evaluates if tools were called when necessary
+- Checks if the right tools were used for the right purposes
+- Assesses the quality and relevance of tool parameters
+- Compares actual tool calls against expected/reference tool calls
+
+**Example:** For a question about "latest testing frameworks," the agent should use web search tools with appropriate queries like "latest test automation frameworks 2024".
+
+#### 3. 🏆 **Agent Goal Accuracy With Reference**
+**What it measures:** How well the agent achieves the specified goal or completes the requested task compared to a reference standard.
+
+**How it works:**
+- Compares the agent's final output against a reference goal description
+- Uses LLM evaluation to assess task completion quality
+- Considers completeness, accuracy, and relevance of the response
+- Evaluates whether the agent provided actionable, useful information
+
+**Example:** For the goal "recommend API testing tools with features and rationale," the agent should provide specific tool names, key features, and clear reasons for recommendation.
+
+### 📈 RAGAS Scoring Table & Action Guide
+
+| Score Range | Category | Meaning | Agent Behavior | Actions Required |
+|-------------|----------|---------|----------------|------------------|
+| **0.90 - 1.00** | 🟢 **EXCELLENT** | Perfect or near-perfect performance | Agent consistently delivers high-quality, on-topic responses with appropriate tool usage | ✅ **Production Ready**<br/>• Deploy with confidence<br/>• Monitor for consistency<br/>• Document successful patterns |
+| **0.75 - 0.89** | 🟡 **GOOD** | Strong performance with minor issues | Agent generally performs well but may have occasional minor deviations or suboptimal tool usage | 🔧 **Minor Tuning**<br/>• Review edge cases<br/>• Refine prompts slightly<br/>• Monitor specific failure patterns |
+| **0.60 - 0.74** | 🟠 **MODERATE** | Acceptable but needs improvement | Agent shows inconsistent behavior, sometimes off-topic or inefficient tool usage | ⚠️ **Requires Attention**<br/>• Review conversation examples<br/>• Adjust topic boundaries<br/>• Improve tool selection logic |
+| **0.40 - 0.59** | 🔴 **POOR** | Significant issues affecting usability | Agent frequently deviates from topics, misuses tools, or fails to achieve goals | 🚨 **Major Revision Needed**<br/>• Redesign conversation flow<br/>• Retrain or adjust model parameters<br/>• Review system prompts |
+| **0.00 - 0.39** | ⚫ **CRITICAL** | Fundamental failures in core functionality | Agent consistently fails to stay on topic, uses wrong tools, or completely misses objectives | 🔥 **Complete Overhaul**<br/>• Rebuild agent architecture<br/>• Review training data quality<br/>• Consider different model/approach |
+
+### 🎯 Metric-Specific Action Thresholds
+
+#### Topic Adherence Score Actions
+
+| Score | Status | Specific Actions |
+|-------|--------|------------------|
+| **≥ 0.8** | ✅ Excellent | • Agent maintains topic focus perfectly<br/>• Ready for specialized domain deployment |
+| **0.6 - 0.79** | 🟡 Good | • Review reference topics for completeness<br/>• Check if topic boundaries are too narrow<br/>• Monitor for valid topic expansions |
+| **0.4 - 0.59** | ⚠️ Needs Work | • Expand or clarify reference topic list<br/>• Review conversation context management<br/>• Strengthen topic adherence prompts |
+| **< 0.4** | 🚨 Critical | • Completely redefine topic boundaries<br/>• Review agent's understanding of domain<br/>• Consider topic classification training |
+
+#### Tool Call Accuracy Actions  
+
+| Score | Status | Specific Actions |
+|-------|--------|------------------|
+| **≥ 0.9** | ✅ Excellent | • Agent uses tools optimally<br/>• Document successful tool patterns<br/>• Ready for complex task deployment |
+| **0.7 - 0.89** | 🟡 Good | • Review specific tool call failures<br/>• Optimize tool selection criteria<br/>• Fine-tune tool parameter generation |
+| **0.5 - 0.69** | ⚠️ Needs Work | • Review tool availability communication<br/>• Strengthen tool selection logic<br/>• Improve tool parameter validation |
+| **< 0.5** | 🚨 Critical | • Redesign tool integration architecture<br/>• Review tool documentation and examples<br/>• Consider tool usage training data |
+
+#### Goal Achievement Actions
+
+| Score | Status | Specific Actions |
+|-------|--------|------------------|
+| **≥ 0.85** | ✅ Excellent | • Agent consistently meets objectives<br/>• Ready for complex goal-oriented tasks<br/>• Scale to more challenging scenarios |
+| **0.6 - 0.84** | 🟡 Good | • Review goal specification clarity<br/>• Strengthen task completion verification<br/>• Improve response structure and completeness |
+| **0.4 - 0.59** | ⚠️ Needs Work | • Clarify goal achievement criteria<br/>• Improve task understanding and breakdown<br/>• Review reference goal formulations |
+| **< 0.4** | 🚨 Critical | • Redesign goal interpretation system<br/>• Strengthen task completion logic<br/>• Review fundamental agent capabilities |
+
+### 💡 Best Practices for Score Interpretation
+
+1. **Consider Score Context**: A score of 0.7 in a complex domain like QA automation might be more impressive than 0.9 in simple conversations.
+
+2. **Look for Patterns**: Consistent medium scores (0.6-0.8) often indicate systemic issues that are easier to fix than erratic scores.
+
+3. **Balance All Metrics**: An agent with high topic adherence (0.9) but low tool accuracy (0.4) needs targeted tool usage improvements.
+
+4. **Monitor Over Time**: Track score trends across multiple test runs to identify improvements or regressions.
+
+5. **Domain-Specific Thresholds**: Adjust acceptable thresholds based on your specific use case and domain complexity.
 
 ---
 

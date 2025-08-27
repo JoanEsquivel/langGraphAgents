@@ -124,8 +124,8 @@ async def test_tool_accuracy_simple(langchain_llm_ragas_wrapper):
     print("\nQuestion: Complex Research Task")
     stream_graph_updates(
         "I need current information about Selenium WebDriver 4.x compatibility issues with Chrome 120+ "
-        "and the latest Playwright vs Cypress performance benchmarks from 2024. "
-        "Also find recent TestNG vs JUnit 5 feature comparisons.",
+        "and the latest Playwright vs Cypress performance benchmarks from 2025. "
+        "Also find recent TestNG vs JUnit feature comparisons.",
         thread_id
     )
     
