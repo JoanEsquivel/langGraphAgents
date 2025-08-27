@@ -163,18 +163,13 @@ def format_conversation_history(thread_id: str = DEFAULT_THREAD_ID):
     return formatted_messages
 
 
-def get_conversation_for_ragas(thread_id: str = DEFAULT_THREAD_ID):
+def _convert_to_ragas_messages(thread_id: str = DEFAULT_THREAD_ID):
     """
-    Return conversation in RAGAS format for TopicAdherenceScore and other RAGAS metrics.
-    Can be directly assigned to a variable like: sample_input_4 = get_conversation_for_ragas()
+    Internal helper function to convert conversation to RAGAS format.
     
     Returns:
         List of RAGAS message objects (ragas.messages.HumanMessage, AIMessage, ToolMessage)
     """
-    if not RAGAS_AVAILABLE:
-        print("❌ Ragas not available. Cannot convert to ragas format.")
-        return []
-    
     snapshot = get_graph_state(thread_id)
     messages = snapshot.values.get("messages", [])
     
@@ -212,72 +207,59 @@ def get_conversation_for_ragas(thread_id: str = DEFAULT_THREAD_ID):
     return ragas_messages
 
 
-def get_conversation_for_tool_accuracy(thread_id: str = DEFAULT_THREAD_ID):
+def getMultiTurnSampleConversation(thread_id: str = DEFAULT_THREAD_ID):
     """
-    Return conversation in ragas format for ToolCallAccuracy (_agent_tool_accuracy) metric.
-    Can be directly assigned to a variable like: sample = get_conversation_for_tool_accuracy()
+    UNIFIED METHOD: Return conversation in MultiTurnSample format for all RAGAS metrics.
+    
+    This method replaces the three previous methods:
+    - get_conversation_for_ragas()
+    - get_conversation_for_tool_accuracy() 
+    - get_conversation_for_goal_accuracy()
+    
+    Usage Examples:
+    - Topic Adherence: sample = getMultiTurnSampleConversation(thread_id)
+                      sample.reference_topics = ["weather", "testing"]
+    - Tool Accuracy:   sample = getMultiTurnSampleConversation(thread_id)
+                      sample.reference_tool_calls = extracted_tool_calls
+    - Goal Accuracy:   sample = getMultiTurnSampleConversation(thread_id)
+                      sample.reference = "goal description"
+    
+    Args:
+        thread_id (str): Conversation thread identifier
     
     Returns:
-        List of ragas message objects (ragas.messages.HumanMessage, AIMessage, ToolMessage)
-    """
-    if not RAGAS_AVAILABLE:
-        print("❌ Ragas not available. Cannot convert to ragas format.")
-        return []
-    
-    snapshot = get_graph_state(thread_id)
-    messages = snapshot.values.get("messages", [])
-    
-    ragas_messages = []
-    
-    for message in messages:
-        if hasattr(message, 'type'):
-            if message.type == 'human':
-                ragas_messages.append(RagasHumanMessage(content=message.content))
-            elif message.type == 'ai':
-                # Check if the AI message has tool calls
-                if hasattr(message, 'tool_calls') and message.tool_calls:
-                    tool_calls = []
-                    for tc in message.tool_calls:
-                        tool_calls.append(RagasToolCall(
-                            name=tc.get("name", ""),
-                            args=tc.get("args", {})
-                        ))
-                    ragas_messages.append(RagasAIMessage(
-                        content=message.content,
-                        tool_calls=tool_calls
-                    ))
-                else:
-                    ragas_messages.append(RagasAIMessage(content=message.content))
-            elif message.type == 'tool':
-                ragas_messages.append(RagasToolMessage(content=message.content))
-        else:
-            # Fallback for messages that don't have a type attribute
-            if hasattr(message, 'role'):
-                if message.role == 'user':
-                    ragas_messages.append(RagasHumanMessage(content=message.content))
-                elif message.role == 'assistant':
-                    ragas_messages.append(RagasAIMessage(content=message.content))
-    
-    return ragas_messages
-
-
-def get_conversation_for_goal_accuracy(thread_id: str = DEFAULT_THREAD_ID):
-    """
-    Return conversation in MultiTurnSample format for agent_goal_accuracy_with_reference metric.
-    Can be directly assigned to a variable like: sample = get_conversation_for_goal_accuracy()
-    
-    Returns:
-        MultiTurnSample object with user_input parameter containing ragas message objects
+        MultiTurnSample object with user_input containing RAGAS message objects
     """
     if not RAGAS_AVAILABLE:
         print("❌ Ragas not available. Cannot convert to MultiTurnSample format.")
         return None
     
     # Get the ragas-formatted messages
-    ragas_messages = get_conversation_for_tool_accuracy(thread_id)
+    ragas_messages = _convert_to_ragas_messages(thread_id)
     
     # Wrap in MultiTurnSample with user_input parameter
     return MultiTurnSample(user_input=ragas_messages)
+
+
+# Backward compatibility functions (deprecated - use getMultiTurnSampleConversation instead)
+def get_conversation_for_ragas(thread_id: str = DEFAULT_THREAD_ID):
+    """DEPRECATED: Use getMultiTurnSampleConversation() instead."""
+    print("⚠️  get_conversation_for_ragas() is deprecated. Use getMultiTurnSampleConversation() instead.")
+    if not RAGAS_AVAILABLE:
+        return []
+    return _convert_to_ragas_messages(thread_id)
+
+def get_conversation_for_tool_accuracy(thread_id: str = DEFAULT_THREAD_ID):
+    """DEPRECATED: Use getMultiTurnSampleConversation() instead."""
+    print("⚠️  get_conversation_for_tool_accuracy() is deprecated. Use getMultiTurnSampleConversation() instead.")
+    if not RAGAS_AVAILABLE:
+        return []
+    return _convert_to_ragas_messages(thread_id)
+
+def get_conversation_for_goal_accuracy(thread_id: str = DEFAULT_THREAD_ID):
+    """DEPRECATED: Use getMultiTurnSampleConversation() instead."""
+    print("⚠️  get_conversation_for_goal_accuracy() is deprecated. Use getMultiTurnSampleConversation() instead.")
+    return getMultiTurnSampleConversation(thread_id)
 
 
 def print_formatted_conversation(thread_id: str = DEFAULT_THREAD_ID):
@@ -307,9 +289,10 @@ if __name__ == "__main__":
     print("  'thread1' - Switch back to conversation thread 1")
     print("  'state' - Show current conversation state")
     print("  'history' - Show formatted conversation history")
-    print("  'ragas' - Get LangChain objects for agent_topic_adherence")
-    print("  'tool_accuracy' - Get ragas objects for _agent_tool_accuracy")
-    print("  'goal_accuracy' - Get MultiTurnSample for agent_goal_accuracy_with_reference")
+    print("  'unified' - Get unified MultiTurnSample for ALL RAGAS metrics")
+    print("  'ragas' - [DEPRECATED] Get LangChain objects for agent_topic_adherence")
+    print("  'tool_accuracy' - [DEPRECATED] Get ragas objects for _agent_tool_accuracy")
+    print("  'goal_accuracy' - [DEPRECATED] Get MultiTurnSample for agent_goal_accuracy_with_reference")
     print("=" * 50)
     
     current_thread = DEFAULT_THREAD_ID
@@ -338,6 +321,16 @@ if __name__ == "__main__":
                 continue
             elif user_input.lower() == "history":
                 print_formatted_conversation(current_thread)
+                continue
+            elif user_input.lower() == "unified":
+                print(f"🔄 UNIFIED MultiTurnSample for ALL RAGAS metrics (thread {current_thread}):")
+                sample = getMultiTurnSampleConversation(current_thread)
+                print(f"sample_{current_thread} = {sample}")
+                print(f"\n📋 Usage:")
+                print(f"   • Topic Adherence: sample.reference_topics = ['weather', 'testing']")
+                print(f"   • Tool Accuracy:   sample.reference_tool_calls = extracted_tool_calls")
+                print(f"   • Goal Accuracy:   sample.reference = 'goal description'")
+                print(f"\n✅ Works with ALL RAGAS metrics!")
                 continue
             elif user_input.lower() == "ragas":
                 print(f"🔬 LangChain objects for agent_topic_adherence (thread {current_thread}):")
