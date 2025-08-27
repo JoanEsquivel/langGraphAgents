@@ -211,24 +211,9 @@ async def test_goal_accuracy_simple(langchain_llm_ragas_wrapper):
     assert score >= 0.7, f"Goal accuracy score {score:.3f} below threshold"
 
 
-if __name__ == "__main__":
-    """Quick manual test"""
-    import asyncio
-    
-    async def quick_test():
-        print("Quick Agent Test")
-        thread_id = f"manual_{uuid.uuid4().hex[:8]}"
-        
-        # Test basic interaction
-        stream_graph_updates("Hello, what can you do?", thread_id)
-        
-        # Show available utilities
-        print(f"\nAvailable utilities for thread {thread_id}:")
-        print("- getMultiTurnSampleConversation() → UNIFIED method for ALL RAGAS metrics")
-        print("  * Set .reference_topics for topic adherence")
-        print("  * Set .reference_tool_calls for tool accuracy")
-        print("  * Set .reference for goal accuracy")
-        
-        print("Quick test completed")
-    
-    asyncio.run(quick_test())
+# File can be run directly with pytest
+# Use: pytest tests/test_real_agent_simple.py -v
+# This will run all three test functions:
+# - test_topic_adherence_simple
+# - test_tool_accuracy_simple  
+# - test_goal_accuracy_simple
