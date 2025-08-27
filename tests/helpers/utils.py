@@ -132,7 +132,7 @@ class RealAgentRunner:
             graph_builder.add_edge(START, "chatbot")   # Start with chatbot
             
         else:
-            # Fallback to basic chatbot without tools
+            # Create basic chatbot when no tools are configured
             def chatbot(state: State):
                 """Basic chatbot node without tool capabilities"""
                 return {"messages": [llm.invoke(state["messages"])]}
@@ -182,35 +182,86 @@ class RealAgentRunner:
         # Initialize response tracking variables
         agent_response = ""
         tool_calls = []
+        intermediate_reasoning = ""
+        actual_tool_results = []
         
-        # Process all events from the agent execution
+        # Process all events from the agent execution - ENHANCED REAL DATA CAPTURE
+        all_messages = []
+        
         for event in events:
             # Each event contains the current state
             if isinstance(event, dict) and "messages" in event:
-                # Get the most recent message
-                message = event["messages"][-1]
-                
-                # Extract text content from AI messages
-                if hasattr(message, 'content') and message.content:
+                # Store all messages for comprehensive analysis
+                all_messages.extend(event["messages"])
+        
+        # Process ALL messages from ALL events to capture complete conversation
+        for i, message in enumerate(all_messages):
+            message_type = getattr(message, 'type', 'unknown')
+            message_role = getattr(message, 'role', 'unknown')
+            
+            print(f"🔍 Processing message {i}: type={message_type}, role={message_role}")
+            
+            # Extract AI assistant messages (including reasoning) - REAL DATA ONLY
+            if message_type == 'ai' or message_role == 'assistant':
+                if hasattr(message, 'content'):
+                    # Always capture the latest AI response
                     agent_response = message.content
+                    
+                    # Capture ONLY real intermediate reasoning (messages with tool calls)
+                    if hasattr(message, 'tool_calls') and message.tool_calls and message.content:
+                        intermediate_reasoning = message.content
+                        print(f"📝 Captured real intermediate reasoning: {intermediate_reasoning[:100]}...")
                 
                 # Extract tool calls for analysis
                 if hasattr(message, 'tool_calls') and message.tool_calls:
                     for tc in message.tool_calls:
-                        tool_calls.append({
+                        tool_call_data = {
                             "name": tc.get("name", ""),
-                            "args": tc.get("args", {})
-                        })
+                            "args": tc.get("args", {}),
+                            "id": tc.get("id", "")
+                        }
+                        tool_calls.append(tool_call_data)
+                        print(f"🔧 Captured tool call: {tool_call_data['name']}")
+            
+            # Capture actual tool execution results
+            elif message_type == 'tool' or message_role == 'tool':
+                if hasattr(message, 'content') and message.content:
+                    tool_result = {
+                        "tool_call_id": getattr(message, 'tool_call_id', ''),
+                        "content": message.content,  # Keep full content for authenticity
+                        "name": getattr(message, 'name', 'unknown')
+                    }
+                    actual_tool_results.append(tool_result)
+                    print(f"📊 Captured tool result: {tool_result['name']} ({len(tool_result['content'])} chars)")
+            
+            # Capture human messages for context
+            elif message_type == 'human' or message_role == 'user':
+                print(f"👤 User message: {getattr(message, 'content', '')[:50]}...")
+        
+        print(f"\n📈 FINAL CAPTURE RESULTS:")
+        print(f"   • Total messages processed: {len(all_messages)}")
+        print(f"   • Tool calls captured: {len(tool_calls)}")
+        print(f"   • Tool results captured: {len(actual_tool_results)}")
+        print(f"   • Intermediate reasoning: {'✅' if intermediate_reasoning else '❌'}")
         
         # Log response summary for debugging
         print(f"🤖 Agente: {agent_response[:150]}...")
         if tool_calls:
             print(f"🔧 Herramientas usadas: {[tc['name'] for tc in tool_calls]}")
         
-        # Return structured data for evaluation
+        # FINAL VALIDATION: Ensure we have real data when tools were used
+        if tool_calls:
+            if not intermediate_reasoning:
+                print("⚠️  WARNING: Tool calls detected but no intermediate reasoning captured!")
+            if not actual_tool_results:
+                print("⚠️  WARNING: Tool calls detected but no actual tool results captured!")
+        
+        # Return comprehensive structured data for evaluation - 100% REAL DATA
         return {
             "question": question,
             "response": agent_response,
             "tools_used": len(tool_calls),
-            "tool_calls": tool_calls
+            "tool_calls": tool_calls,
+            "intermediate_reasoning": intermediate_reasoning,
+            "actual_tool_results": actual_tool_results
         }

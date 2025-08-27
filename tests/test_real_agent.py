@@ -1,21 +1,35 @@
 """
-Real Agent Evaluation Tests
+🚀 100% AUTHENTIC Real Agent Evaluation Tests
 
 These tests execute the actual 3_basic_chat_bot_with_tools_memory.py agent
 and evaluate real responses using RAGAS metrics for comprehensive assessment.
 
-🚀 EVERYTHING IS REAL - NO SIMULATION:
-- Uses actual LangGraph agent from your src code
-- Makes real calls to Qwen 2.5:7b-instruct LLM
-- Uses real Tavily web search tool
-- Captures actual tool calls and responses
-- No mocked or simulated data - all results are genuine
+🚀 EVERYTHING IS REAL - NO SIMULATION WHATSOEVER:
+✅ Uses actual LangGraph agent from your src code
+✅ Makes real calls to Qwen 2.5:7b-instruct LLM at localhost:11434
+✅ Uses real Tavily web search tool with internet connectivity
+✅ Captures actual tool calls with real arguments
+✅ Captures real tool execution results when available
+✅ Uses authentic agent reasoning and decision-making
+✅ No mocked, stubbed, or simulated data - all results are genuine
+✅ Real-time streaming of agent events and state changes
+✅ Authentic conversation flow with memory persistence
 
-Test Coverage:
+🔬 ENHANCED AUTHENTICITY FEATURES:
+- Captures intermediate agent reasoning before tool calls
+- Records actual tool execution results from web searches  
+- Uses real agent responses in RAGAS conversation structures
+- ZERO SIMULATION: Only real captured data used in all tests
+- Comprehensive debugging output shows authentic data capture status
+
+📊 Test Coverage:
 - Basic agent functionality and tool usage (weather information)
 - Topic adherence evaluation (weather + automation testing topics)
 - Tool call accuracy assessment (automation testing framework research)
 - Goal completion accuracy with reference standards (test automation research)
+
+🎯 Perfect for demos: These tests showcase genuine AI agent capabilities
+   with real LLM reasoning, real tool usage, and real web search results.
 """
 
 import sys
@@ -70,12 +84,13 @@ async def test_real_agent_topic_adherence_simple(langchain_llm_ragas_wrapper):
     print(f"\n📝 Constructing RAGAS conversation sample...")
     
     # Build conversation structure for RAGAS evaluation
-    # Note: Using simple AI/Human messages to avoid ToolMessage complexity
+    # Note: This test focuses on topic adherence without tool usage complexity
+    # Using real agent responses from actual LLM calls - NO SIMULATION
     conversation = [
         HumanMessage(content=result1['question']),     # Weather question
-        AIMessage(content=result1['response']),        # Agent weather response
+        AIMessage(content=result1['response']),        # Real agent weather response
         HumanMessage(content=result2['question']),     # Automation testing question
-        AIMessage(content=result2['response'])         # Agent testing response
+        AIMessage(content=result2['response'])         # Real agent testing response
     ]
     
     # Create RAGAS sample with more comprehensive reference topics for adherence measurement
@@ -143,24 +158,51 @@ async def test_real_agent_tool_accuracy_simple(langchain_llm_ragas_wrapper):
     print(f"\n📊 AGENT EXECUTION RESULTS:")
     print(f"   • Tools Used: {result['tools_used']}")
     print(f"   • Tool Calls: {[tc['name'] for tc in result['tool_calls']]}")
+    print(f"   • Intermediate Reasoning: {'✅ Captured' if result.get('intermediate_reasoning') else '❌ Not captured'}")
+    print(f"   • Actual Tool Results: {'✅ Captured' if result.get('actual_tool_results') else '❌ Not captured - REAL DATA ONLY'}")
     
-    # Build RAGAS conversation structure following documentation pattern
+    # VALIDATE REAL DATA AVAILABILITY - NO FALLBACKS ALLOWED
+    assert result.get('actual_tool_results'), f"❌ REAL DATA REQUIRED: No actual tool results captured from agent" 
+    assert result['tool_calls'], f"❌ REAL DATA REQUIRED: No tool calls captured from agent"
+    
+    # Note: Intermediate reasoning is captured when available, but not required for all agent implementations
+    if result.get('intermediate_reasoning'):
+        print("✅ Intermediate reasoning captured from real agent")
+    else:
+        print("ℹ️  Intermediate reasoning not captured (agent may not provide explicit reasoning text)")
+    
+    print("✅ ESSENTIAL REAL DATA VALIDATED - PROCEEDING WITH 100% AUTHENTIC TEST")
+    
+    # Build RAGAS conversation structure using REAL agent data
     conversation = [
         HumanMessage(content=research_question),
-        AIMessage(
-            content="I'll search for recent news about automation testing frameworks and tools to provide you with up-to-date information.",
-            tool_calls=[
-                ToolCall(name=tc['name'], args=tc['args']) 
-                for tc in result['tool_calls']
-            ]
-        )
     ]
     
-    # Add ToolMessage for each tool call (simulating tool execution results)
-    for tc in result['tool_calls']:
+    # If agent made tool calls, use REAL reasoning and results
+    if result['tool_calls']:
+        # Use intermediate reasoning if captured, otherwise create minimal AI message for tool calls
+        if result.get('intermediate_reasoning'):
+            ai_reasoning = result['intermediate_reasoning']
+        else:
+            # When no intermediate reasoning captured, use empty content but keep tool calls
+            # This represents the actual agent behavior - some agents don't provide reasoning text
+            ai_reasoning = ""
+        
         conversation.append(
-            ToolMessage(content=f"Found recent articles and news about automation testing frameworks including trends, tools, and best practices.")
+            AIMessage(
+                content=ai_reasoning,
+                tool_calls=[
+                    ToolCall(name=tc['name'], args=tc['args']) 
+                    for tc in result['tool_calls']
+                ]
+            )
         )
+        
+        # Add ToolMessage with REAL tool execution results ONLY - NO SIMULATION
+        for tool_result in result['actual_tool_results']:
+            conversation.append(
+                ToolMessage(content=tool_result['content'])
+            )
     
     # Final AI response incorporating tool results
     conversation.append(
@@ -240,7 +282,23 @@ async def test_real_agent_goal_accuracy_with_reference(langchain_llm_ragas_wrapp
     # Execute the task and capture agent's response
     result = agent.ask_agent(task_request)
     
-    print(f"🔄 Agent executed task with {result['tools_used']} tool calls")
+    print(f"\n📊 GOAL EXECUTION RESULTS:")
+    print(f"   • Tools Used: {result['tools_used']}")
+    print(f"   • Tool Calls: {[tc['name'] for tc in result['tool_calls']]}")
+    print(f"   • Intermediate Reasoning: {'✅ Captured' if result.get('intermediate_reasoning') else '❌ Not captured'}")
+    print(f"   • Actual Tool Results: {'✅ Captured' if result.get('actual_tool_results') else '❌ Not captured - REAL DATA ONLY'}")
+    
+    # VALIDATE REAL DATA AVAILABILITY - NO FALLBACKS ALLOWED
+    if result['tool_calls']:  # Only validate if tools were actually used
+        assert result.get('actual_tool_results'), f"❌ REAL DATA REQUIRED: No actual tool results captured from agent"
+        
+        # Note: Intermediate reasoning is captured when available, but not required for all agent implementations
+        if result.get('intermediate_reasoning'):
+            print("✅ Intermediate reasoning captured from real agent")
+        else:
+            print("ℹ️  Intermediate reasoning not captured (agent may not provide explicit reasoning text)")
+        
+        print("✅ ESSENTIAL REAL DATA VALIDATED - PROCEEDING WITH 100% AUTHENTIC TEST")
     
     # Build proper multi-turn conversation structure as required by RAGAS
     # Following the documentation pattern: Human -> AI (with tools) -> ToolMessage -> AI (final)
@@ -249,12 +307,19 @@ async def test_real_agent_goal_accuracy_with_reference(langchain_llm_ragas_wrapp
         HumanMessage(content=task_request)
     ]
     
-    # If agent used tools, show the tool calling decision
+    # If agent used tools, show the ACTUAL tool calling decision
     if result['tool_calls']:
-        # AI decides to use tools to accomplish the goal
+        # Use real intermediate reasoning if captured, otherwise use empty content for authenticity
+        if result.get('intermediate_reasoning'):
+            ai_decision = result['intermediate_reasoning']
+        else:
+            # When no intermediate reasoning captured, use empty content but keep tool calls
+            # This represents the actual agent behavior - some agents don't provide reasoning text
+            ai_decision = ""
+        
         conversation.append(
             AIMessage(
-                content="I'll search for information about the latest developments in test automation frameworks to provide you with a comprehensive summary.",
+                content=ai_decision,
                 tool_calls=[
                     ToolCall(name=tc['name'], args=tc['args']) 
                     for tc in result['tool_calls']
@@ -262,13 +327,10 @@ async def test_real_agent_goal_accuracy_with_reference(langchain_llm_ragas_wrapp
             )
         )
         
-        # Add ToolMessage for each tool call showing execution results
-        for tc in result['tool_calls']:
-            # Create realistic ToolMessage content based on tool type
-            tool_result_content = f"Found recent articles about test automation framework developments including new features, best practices, and industry trends."
-            
+        # Add ToolMessage using REAL tool execution results ONLY - NO SIMULATION
+        for tool_result in result['actual_tool_results']:
             conversation.append(
-                ToolMessage(content=tool_result_content)
+                ToolMessage(content=tool_result['content'])
             )
         
         # Final AI response incorporating tool results
