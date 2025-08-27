@@ -28,7 +28,7 @@ from pathlib import Path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import RAGAS evaluation components
-from ragas import MultiTurnSample
+from ragas.dataset_schema import MultiTurnSample
 from ragas.messages import HumanMessage, AIMessage, ToolMessage, ToolCall
 from ragas.metrics import TopicAdherenceScore, ToolCallAccuracy, AgentGoalAccuracyWithReference
 
@@ -115,21 +115,22 @@ async def test_real_agent_topic_adherence_simple(langchain_llm_ragas_wrapper):
 
 
 @pytest.mark.asyncio
-async def test_real_agent_tool_accuracy_simple():
+async def test_real_agent_tool_accuracy_simple(langchain_llm_ragas_wrapper):
     """
-    Tool Usage Accuracy Test
+    Tool Call Accuracy Test (RAGAS)
     
-    This test verifies the agent's ability to:
+    This test evaluates the agent's tool calling accuracy using RAGAS ToolCallAccuracy metric.
+    It verifies the agent's ability to:
     1. Identify when tools are needed for information gathering
     2. Select appropriate tools for specific tasks
     3. Use tools with relevant arguments
-    4. Integrate tool results effectively into responses
+    4. Match expected tool call patterns
     
     Focus: Automation testing news search requiring web tool usage
     """
     
     print("\n" + "="*60) 
-    print("🧪 TEST: Tool Usage Accuracy Assessment")
+    print("🧪 TEST: Tool Call Accuracy Assessment (RAGAS)")
     print("="*60)
     
     # Initialize agent for tool testing with custom test name
@@ -139,42 +140,73 @@ async def test_real_agent_tool_accuracy_simple():
     research_question = "Please search for recent news about automation testing frameworks and tools"
     result = agent.ask_agent(research_question)
     
-    print(f"\n📊 TOOL USAGE ANALYSIS:")
-    print(f"   • Tools Activated: {result['tools_used']}")
+    print(f"\n📊 AGENT EXECUTION RESULTS:")
+    print(f"   • Tools Used: {result['tools_used']}")
+    print(f"   • Tool Calls: {[tc['name'] for tc in result['tool_calls']]}")
     
-    # Examine each tool call for accuracy
-    for i, tc in enumerate(result['tool_calls']):
-        print(f"   • Tool Call {i+1}: {tc['name']}")
-        print(f"     Arguments: {tc['args']}")
-        
-    # Verify correct tool selection
-    tool_names = [tc['name'] for tc in result['tool_calls']]
+    # Build RAGAS conversation structure following documentation pattern
+    conversation = [
+        HumanMessage(content=research_question),
+        AIMessage(
+            content="I'll search for recent news about automation testing frameworks and tools to provide you with up-to-date information.",
+            tool_calls=[
+                ToolCall(name=tc['name'], args=tc['args']) 
+                for tc in result['tool_calls']
+            ]
+        )
+    ]
     
-    # Check if Tavily search tool was used (expected for web searches)
-    if any("tavily" in name.lower() for name in tool_names):
-        print(f"   ✅ Correctly selected Tavily for web search")
-    
-    # Analyze search query relevance
-    queries = []
+    # Add ToolMessage for each tool call (simulating tool execution results)
     for tc in result['tool_calls']:
-        if 'query' in tc['args']:
-            queries.append(tc['args']['query'])
-            
-    # Verify query content alignment with request
-    if queries:
-        print(f"   📝 Search Queries Generated: {queries}")
-        relevant_keywords = ["automation testing", "test automation", "testing frameworks", "selenium", "cypress", "playwright"]
-        query_text = ' '.join(queries).lower()
-        
-        if any(keyword in query_text for keyword in relevant_keywords):
-            print(f"   ✅ Search queries contain relevant keywords")
-        else:
-            print(f"   ⚠️  Search queries may lack topic relevance")
+        conversation.append(
+            ToolMessage(content=f"Tool {tc['name']} executed successfully with query: {tc['args'].get('query', 'N/A')}")
+        )
     
-    # Assert that tools were actually used for this search task
-    assert result['tools_used'] > 0, f"Agent should use tools for search requests but used {result['tools_used']} tools"
+    # Final AI response incorporating tool results
+    conversation.append(
+        AIMessage(content=result['response'])
+    )
     
-    print("✅ TEST COMPLETED: Tool usage patterns analyzed successfully")
+    # Define reference tool calls - what should have been called for this task
+    reference_tool_calls = [
+        ToolCall(name="tavily_search_results_json", args={"query": "automation testing frameworks tools recent news"})
+    ]
+    
+    print(f"\n📝 Constructing RAGAS sample for evaluation...")
+    
+    # Create RAGAS MultiTurnSample with user_input and reference_tool_calls
+    sample = MultiTurnSample(
+        user_input=conversation,
+        reference_tool_calls=reference_tool_calls
+    )
+    
+    print(f"🎯 Evaluating tool call accuracy with RAGAS scorer...")
+    
+    # Initialize and execute RAGAS ToolCallAccuracy evaluation
+    scorer = ToolCallAccuracy()
+    score = await scorer.multi_turn_ascore(sample)
+    
+    # Present evaluation results
+    print(f"\n📊 RAGAS TOOL CALL ACCURACY RESULTS:")
+    print(f"   🎯 Tool Call Accuracy Score: {score:.3f}")
+    print(f"   📏 Perfect Score: 1.0")
+    print(f"   🔧 Agent Tool Calls: {len(result['tool_calls'])}")
+    print(f"   📋 Reference Tool Calls: {len(reference_tool_calls)}")
+    
+    # Interpret results
+    if score == 1.0:
+        print(f"   ✅ PERFECT: Tool calls exactly match reference standard")
+    elif score >= 0.7:
+        print(f"   ✅ GOOD: High tool call accuracy achieved")
+    elif score >= 0.5:
+        print(f"   ⚠️  ACCEPTABLE: Moderate tool call accuracy")
+    else:
+        print(f"   ❌ NEEDS IMPROVEMENT: Low tool call accuracy")
+    
+    # Apply RAGAS-based threshold for tool call accuracy
+    assert score >= 0.5, f"RAGAS ToolCallAccuracy score {score:.3f} below acceptable threshold of 0.5"
+    
+    print("✅ TEST COMPLETED: Tool call accuracy successfully evaluated with RAGAS")
 
 
 @pytest.mark.asyncio
@@ -208,18 +240,44 @@ async def test_real_agent_goal_accuracy_with_reference(langchain_llm_ragas_wrapp
     
     print(f"🔄 Agent executed task with {result['tools_used']} tool calls")
     
-    # Use the agent's natural single-turn completion for evaluation
-    # This is the most realistic scenario - agent gets a task and completes it
+    # Build proper multi-turn conversation structure as required by RAGAS
+    # Following the documentation pattern: Human -> AI (with tools) -> ToolMessage -> AI (final)
     conversation = [
-        HumanMessage(content=task_request),
-        AIMessage(
-            content=result['response'],
-            tool_calls=[
-                ToolCall(name=tc['name'], args=tc['args']) 
-                for tc in result['tool_calls']
-            ] if result['tool_calls'] else []
-        )
+        # Initial user request
+        HumanMessage(content=task_request)
     ]
+    
+    # If agent used tools, show the tool calling decision
+    if result['tool_calls']:
+        # AI decides to use tools to accomplish the goal
+        conversation.append(
+            AIMessage(
+                content="I'll search for information about the latest developments in test automation frameworks to provide you with a comprehensive summary.",
+                tool_calls=[
+                    ToolCall(name=tc['name'], args=tc['args']) 
+                    for tc in result['tool_calls']
+                ]
+            )
+        )
+        
+        # Add ToolMessage for each tool call showing execution results
+        for tc in result['tool_calls']:
+            # Create realistic ToolMessage content based on tool type
+            tool_result_content = f"Successfully searched for information about test automation frameworks. Found relevant articles and developments related to: {tc['args'].get('query', 'test automation frameworks')}"
+            
+            conversation.append(
+                ToolMessage(content=tool_result_content)
+            )
+        
+        # Final AI response incorporating tool results
+        conversation.append(
+            AIMessage(content=result['response'])
+        )
+    else:
+        # No tools used, direct response
+        conversation.append(
+            AIMessage(content=result['response'])
+        )
     
     print(f"📝 Agent response length: {len(result['response'])} characters")
     print(f"🔧 Tools executed: {[tc['name'] for tc in result['tool_calls']]}")
