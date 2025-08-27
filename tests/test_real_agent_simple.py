@@ -23,7 +23,7 @@ import importlib.util
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import RAGAS components
-from ragas.dataset_schema import MultiTurnSample
+from ragas.dataset_schema import MultiTurnSample, ToolCall
 from ragas.metrics import TopicAdherenceScore, ToolCallAccuracy, AgentGoalAccuracyWithReference
 
 # Import agent utilities
@@ -78,6 +78,10 @@ async def test_topic_adherence_simple(langchain_llm_ragas_wrapper):
     # Ask about mobile testing (edge case - should stay in QA)
     print("\nQuestion 4: Mobile Testing")
     stream_graph_updates("Explain mobile testing considerations for iOS and Android applications", thread_id)
+    
+    # Add a potentially off-topic question to test topic adherence
+    print("\nQuestion 5: Potential Off-Topic Challenge")
+    stream_graph_updates("What's the weather like today? Also, can you help me with cooking recipes?", thread_id)
     
     # Get conversation using unified method
     print("\nGetting conversation using unified method...")
@@ -142,16 +146,45 @@ async def test_tool_accuracy_simple(langchain_llm_ragas_wrapper):
     sample = getMultiTurnSampleConversation(thread_id)
     print(f"Got MultiTurnSample with {len(sample.user_input)} messages")
     
-    # Extract tool calls for RAGAS reference (no evaluation logic)
-    tool_calls_found = []
-    for msg in sample.user_input:
-        if hasattr(msg, 'tool_calls') and msg.tool_calls:
-            tool_calls_found.extend(msg.tool_calls)
+    # Define expected tool calls based on the questions asked
+    # The test asks about: Selenium WebDriver 4.x + Chrome 120, Playwright vs Cypress benchmarks,
+    # TestNG vs JUnit comparisons, and test execution speed comparisons
+    # A competent agent should make targeted searches for each of these topics
     
-    # Set reference tool calls following RAGAS documentation  
-    sample.reference_tool_calls = tool_calls_found  # Use actual tool calls as reference
+    # Define CHALLENGING expected tool calls that test competent research strategy
+    # A competent agent should make these SPECIFIC targeted searches for the complex question
+    # NOTE: We expect EXACT these searches - agent must be strategic and thorough
+    expected_tool_calls = [
+        # Must search specifically for Selenium WebDriver 4.x Chrome 120 compatibility
+        ToolCall(
+            name="tavily_search", 
+            args={"query": "Selenium WebDriver 4.x Chrome 120 compatibility issues 2024 2025"}
+        ),
+        # Must search specifically for Playwright vs Cypress performance benchmarks  
+        ToolCall(
+            name="tavily_search", 
+            args={"query": "Playwright vs Cypress performance benchmarks 2025"}
+        ),
+        # Must search specifically for TestNG vs JUnit comparison
+        ToolCall(
+            name="tavily_search", 
+            args={"query": "TestNG vs JUnit comparison features 2024"}
+        ),
+        # Must search for speed comparisons (from follow-up question)
+        ToolCall(
+            name="tavily_search", 
+            args={"query": "test automation tools speed performance comparison 2024"}
+        )
+    ]
+    
+    # Set reference tool calls following RAGAS documentation
+    # This creates a gold standard: the agent should make these specific searches
+    # to properly answer the complex research question about QA automation tools
+    sample.reference_tool_calls = expected_tool_calls
     
     # Evaluate with RAGAS only
+    # ToolCallAccuracy() will now compare the agent's actual tool calls against our expected ones
+    # This measures: Did the agent make the RIGHT searches with appropriate query terms?
     print("\nRunning RAGAS evaluation...")
     scorer = ToolCallAccuracy()
     score = await scorer.multi_turn_ascore(sample)
@@ -192,8 +225,19 @@ async def test_goal_accuracy_simple(langchain_llm_ragas_wrapper):
     sample = getMultiTurnSampleConversation(thread_id)
     print(f"Got MultiTurnSample with {len(sample.user_input)} messages")
     
-    # Set simple reference goal (matching the example format)
-    reference_goal = "Recommended a specific API testing tool with features and rationale based on current research"
+    # Set CHALLENGING, specific reference goal that tests true competency
+    # This creates a rigorous evaluation standard that checks for:
+    # 1. Single focused recommendation (not a laundry list)
+    # 2. Minimum 3 concrete features with explanations  
+    # 3. Current research citations from 2024/2025
+    # 4. Actionable implementation steps
+    # 5. Clear rationale for why THIS tool over alternatives
+    reference_goal = (
+        "Recommended ONE specific API testing tool as the best choice, listed at least 3 key features "
+        "with detailed explanations, provided evidence from current 2024/2025 research sources, "
+        "explained why this tool is better than alternatives like Postman or Insomnia, and "
+        "gave specific implementation steps to get started"
+    )
     sample.reference = reference_goal
     
     print(f"Reference goal: {reference_goal}")
