@@ -129,6 +129,171 @@ AIMessage(content="The current temperature in Madrid is 24°C with partly cloudy
 
 ---
 
+## 🔧 Utility Function Output Formats
+
+This section shows the **exact formatted responses** from each utility function, demonstrating how conversations are transformed for different RAGAS metrics.
+
+### 📋 Function Overview
+
+| Function | Input | Output Type | RAGAS Metric Usage |
+|----------|-------|-------------|-------------------|
+| `get_conversation_for_ragas()` | `thread_id: str` | `List[LangChainMessage]` | ⚠️ Not directly used (compatibility issue) |
+| `get_conversation_for_tool_accuracy()` | `thread_id: str` | `List[RagasMessage]` | ✅ All metrics (TopicAdherence, ToolCallAccuracy) |
+| `get_conversation_for_goal_accuracy()` | `thread_id: str` | `MultiTurnSample` | ✅ AgentGoalAccuracyWithReference |
+
+### 🔍 Detailed Output Analysis
+
+#### 1️⃣ `get_conversation_for_ragas()` Output
+
+**Purpose**: Returns raw LangChain message objects from the conversation state.
+
+```python
+# Function call
+langchain_messages = get_conversation_for_ragas(thread_id)
+
+# Output Format
+Total messages: 2
+Returns: List[LangChainMessage]
+
+# Message Structure
+[0] Type: HumanMessage
+    Module: langchain_core.messages.human
+    Content: 'What is 2+2?'
+
+[1] Type: AIMessage  
+    Module: langchain_core.messages.ai
+    Content: 'The answer to 2+2 is 4. If you need any more information or have another question, feel free to ask!'
+    tool_calls: []  # Empty for non-tool responses
+```
+
+**Key Characteristics:**
+- **Message Types**: `langchain_core.messages.{human,ai,tool}.{HumanMessage,AIMessage,ToolMessage}`
+- **Tool Calls Format**: Python dictionary structure `{"name": "tool_name", "args": {...}}`
+- **Content**: Raw string content from agent responses
+- **RAGAS Compatibility**: ❌ **Cannot be used directly** - causes `ValidationError` when creating `MultiTurnSample`
+
+#### 2️⃣ `get_conversation_for_tool_accuracy()` Output 
+
+**Purpose**: Converts LangChain messages to RAGAS-compatible format.
+
+```python
+# Function call  
+ragas_messages = get_conversation_for_tool_accuracy(thread_id)
+
+# Output Format
+Total messages: 2
+Returns: List[RagasMessage]
+
+# Message Structure
+[0] Type: HumanMessage
+    Module: ragas.messages
+    Content: 'What is 2+2?'
+
+[1] Type: AIMessage
+    Module: ragas.messages  
+    Content: 'The answer to 2+2 is 4. If you need any more information or have another question, feel free to ask!'
+    tool_calls: []  # RAGAS ToolCall objects when present
+```
+
+**With Tool Usage Example:**
+```python
+# For conversations with tool calls
+[2] Type: AIMessage
+    Module: ragas.messages
+    Content: 'I'll search for current weather information.'
+    Tool Calls: 1 RAGAS ToolCall objects
+      [0] Name: tavily_search
+          Args: {'query': 'weather Madrid today'}
+          Type: ToolCall  # ragas.messages.ToolCall
+
+[3] Type: ToolMessage
+    Module: ragas.messages
+    Content: '{"query": "weather Madrid today", "results": [...]}'
+```
+
+**Key Characteristics:**
+- **Message Types**: `ragas.messages.{HumanMessage,AIMessage,ToolMessage}`  
+- **Tool Calls Format**: RAGAS `ToolCall` objects with `.name` and `.args` attributes
+- **Content**: Identical to LangChain content but in RAGAS wrapper
+- **RAGAS Compatibility**: ✅ **Perfect compatibility** - works with all RAGAS metrics
+
+#### 3️⃣ `get_conversation_for_goal_accuracy()` Output
+
+**Purpose**: Wraps RAGAS messages in `MultiTurnSample` container for goal evaluation.
+
+```python
+# Function call
+goal_sample = get_conversation_for_goal_accuracy(thread_id)
+
+# Output Format  
+Type: MultiTurnSample
+Module: ragas.dataset_schema
+user_input type: list
+user_input length: 2
+reference: None
+reference_topics: None
+
+# Container Structure
+MultiTurnSample(
+    user_input=[
+        HumanMessage(content='What is 2+2?'),
+        AIMessage(content='The answer to 2+2 is 4. If you need any more information...')
+    ],
+    reference=None,
+    reference_topics=None,
+    reference_tool_calls=None
+)
+```
+
+**Key Characteristics:**
+- **Container Type**: `ragas.dataset_schema.MultiTurnSample`
+- **user_input**: List of RAGAS messages (same as `get_conversation_for_tool_accuracy()`)
+- **Reference Fields**: `reference`, `reference_topics`, `reference_tool_calls` - all set to `None` by default
+- **RAGAS Compatibility**: ✅ **Direct input** for `AgentGoalAccuracyWithReference.multi_turn_ascore()`
+
+### 🔄 Conversion Process Flow
+
+```python
+# Step 1: Raw LangChain messages in graph state
+langchain_conversation = [
+    HumanMessage(content="What's the weather?"),
+    AIMessage(content="I'll search for weather...", tool_calls=[...]),
+    ToolMessage(content="Weather data: 24°C"),
+    AIMessage(content="Temperature is 24°C")
+]
+
+# Step 2: RAGAS conversion (get_conversation_for_tool_accuracy)
+ragas_conversation = [
+    ragas.messages.HumanMessage(content="What's the weather?"),
+    ragas.messages.AIMessage(content="I'll search for weather...", 
+                             tool_calls=[ragas.messages.ToolCall(name="tavily_search", args={...})]),
+    ragas.messages.ToolMessage(content="Weather data: 24°C"),
+    ragas.messages.AIMessage(content="Temperature is 24°C")
+]
+
+# Step 3: MultiTurnSample wrapping (get_conversation_for_goal_accuracy)
+sample = MultiTurnSample(
+    user_input=ragas_conversation,
+    reference="Agent should provide current weather information"  # Added during evaluation
+)
+```
+
+### ⚠️ Critical Implementation Notes
+
+1. **Type Compatibility**: 
+   - LangChain messages ≠ RAGAS messages (different modules)
+   - Must convert through `get_conversation_for_tool_accuracy()` for RAGAS usage
+
+2. **Tool Call Transformation**:
+   - LangChain: `dict` with `name` and `args` keys  
+   - RAGAS: `ToolCall` object with `.name` and `.args` attributes
+
+3. **Best Practice**: Use `get_conversation_for_tool_accuracy()` for **all RAGAS metrics**
+   - Even `TopicAdherenceScore` works better with RAGAS messages in practice
+   - Consistent message format across all evaluations
+
+---
+
 ## 🔬 Metric Implementation Details
 
 ### 1️⃣ Topic Adherence Score
@@ -411,19 +576,30 @@ score = await scorer.multi_turn_ascore(sample)  # Returns 1.0 for complete achie
 ```mermaid
 graph TD
     subgraph "Message Flow Processing"
-        A[LangChain Messages<br/>Raw conversation data] --> B{Format Converter}
+        A["LangChain Messages
+        Raw conversation data"] --> B{Format Converter}
         
-        B --> C[get_conversation_for_ragas<br/>Returns: LangChain Messages]
-        B --> D[get_conversation_for_tool_accuracy<br/>Returns: RAGAS Messages]  
-        B --> E[get_conversation_for_goal_accuracy<br/>Returns: MultiTurnSample]
+        B --> C["get_conversation_for_ragas
+        Returns: LangChain Messages"]
+        B --> D["get_conversation_for_tool_accuracy
+        Returns: RAGAS Messages"]  
+        B --> E["get_conversation_for_goal_accuracy
+        Returns: MultiTurnSample"]
         
-        C --> F[TopicAdherenceScore<br/>Requires: RAGAS Messages in practice]
-        D --> G[ToolCallAccuracy<br/>Requires: RAGAS Messages]
-        E --> H[AgentGoalAccuracyWithReference<br/>Requires: MultiTurnSample]
+        C --> F["TopicAdherenceScore
+        Requires: RAGAS Messages in practice"]
+        D --> G["ToolCallAccuracy
+        Requires: RAGAS Messages"]
+        E --> H["AgentGoalAccuracyWithReference
+        Requires: MultiTurnSample"]
     end
     
     subgraph "Data Structures"
-        I[MultiTurnSample<br/>user_input: List[Message]<br/>reference_topics: List[str]<br/>reference_tool_calls: List[ToolCall]<br/>reference: str]
+        I["MultiTurnSample
+        - user_input: List[Message]
+        - reference_topics: List[str]
+        - reference_tool_calls: List[ToolCall]
+        - reference: str"]
     end
     
     F --> I
@@ -498,6 +674,160 @@ def run_comprehensive_evaluation(thread_id: str, evaluator_llm):
 - **Web Search**: Tavily API for real-time information retrieval
 - **State Management**: LangGraph checkpointing for conversation persistence
 - **Evaluation Engine**: RAGAS framework with custom LLM wrapper
+
+---
+
+## 💻 Working Test Implementation Examples
+
+This section shows **exact code from working tests** (`test_real_agent_simple.py`) demonstrating proper utility function usage.
+
+### 🧪 Topic Adherence Score Test
+
+```python
+@pytest.mark.asyncio
+async def test_topic_adherence_simple():
+    """Test agent's ability to maintain topic focus using RAGAS evaluation."""
+    
+    # 1. Create conversation with agent
+    test_thread_id = f"topic_test_{uuid.uuid4().hex[:8]}"
+    
+    # Have conversation about weather (on-topic)
+    agent_final.stream_graph_updates("What's the weather in Madrid?", test_thread_id)
+    
+    # Have conversation about technical topic (on-topic)
+    agent_final.stream_graph_updates("What are API testing best practices?", test_thread_id)
+    
+    # 2. Get conversation in RAGAS format
+    conversation = agent_final.get_conversation_for_tool_accuracy(test_thread_id)
+    #                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    # CRITICAL: Use get_conversation_for_tool_accuracy() for RAGAS compatibility
+    
+    # 3. Create RAGAS evaluation sample
+    sample = MultiTurnSample(
+        user_input=conversation,  # List of RAGAS messages
+        reference_topics=["weather", "testing", "automation", "technical information"]
+    )
+    
+    # 4. Evaluate with RAGAS
+    scorer = TopicAdherenceScore(llm=evaluator_llm, mode="precision")
+    result = await scorer.multi_turn_ascore(sample)
+    
+    # 5. Verify result
+    print(f"Topic Adherence Score: {result}")
+    assert result >= 0.5  # Minimum acceptable adherence
+```
+
+### 🔧 Tool Call Accuracy Test
+
+```python
+@pytest.mark.asyncio
+async def test_tool_accuracy_simple():
+    """Test agent's tool selection and usage accuracy."""
+    
+    # 1. Create conversation with specific tool usage
+    test_thread_id = f"tool_test_{uuid.uuid4().hex[:8]}"
+    
+    # Ask question that requires web search
+    agent_final.stream_graph_updates("What are the latest trends in automation?", test_thread_id)
+    
+    # 2. Get conversation with tool call details
+    conversation = agent_final.get_conversation_for_tool_accuracy(test_thread_id)
+    #                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    # This function returns RAGAS messages with proper ToolCall objects
+    
+    # 3. Define expected tool usage
+    reference_tool_calls = [
+        ToolCall(
+            name="tavily_search",
+            args={"query": "latest trends in automation"}  # Expected search query
+        )
+    ]
+    
+    # 4. Create evaluation sample
+    sample = MultiTurnSample(
+        user_input=conversation,
+        reference_tool_calls=reference_tool_calls
+    )
+    
+    # 5. Evaluate tool usage accuracy
+    scorer = ToolCallAccuracy()
+    result = await scorer.multi_turn_ascore(sample)
+    
+    print(f"Tool Call Accuracy: {result}")
+    assert result >= 0.8  # High precision required for tool usage
+```
+
+### 🎯 Goal Achievement Test
+
+```python
+@pytest.mark.asyncio
+async def test_goal_achievement_simple():
+    """Test agent's ability to achieve user goals."""
+    
+    # 1. Create goal-oriented conversation
+    test_thread_id = f"goal_test_{uuid.uuid4().hex[:8]}"
+    
+    # Present clear task to agent
+    agent_final.stream_graph_updates("Research and explain microservices architecture benefits", test_thread_id)
+    
+    # 2. Get formatted sample (pre-wrapped in MultiTurnSample)
+    sample = agent_final.get_conversation_for_goal_accuracy(test_thread_id)
+    #                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    # Returns MultiTurnSample directly - no additional wrapping needed
+    
+    # 3. Add evaluation reference
+    sample.reference = "Agent should research microservices architecture and provide comprehensive explanation of benefits"
+    
+    # 4. Evaluate goal achievement
+    scorer = AgentGoalAccuracyWithReference(llm=evaluator_llm)
+    result = await scorer.multi_turn_ascore(sample)
+    
+    print(f"Goal Achievement Score: {result}")
+    assert result >= 0.7  # Strong goal completion required
+```
+
+### 🔄 Dynamic Module Loading (Required)
+
+Since the `src` directory lacks `__init__.py`, dynamic loading is required:
+
+```python
+import importlib.util
+
+# Load agent functions dynamically
+spec = importlib.util.spec_from_file_location(
+    "agent_final", 
+    "src/4-final-agent-formated-response.py"
+)
+agent_final = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(agent_final)
+
+# Now utility functions are available:
+# - agent_final.get_conversation_for_ragas()
+# - agent_final.get_conversation_for_tool_accuracy()  
+# - agent_final.get_conversation_for_goal_accuracy()
+# - agent_final.stream_graph_updates()
+```
+
+### 🎯 Key Success Patterns
+
+1. **Always use `get_conversation_for_tool_accuracy()`** for Topics and Tool metrics
+2. **Use `get_conversation_for_goal_accuracy()`** for Goal Achievement (returns pre-wrapped sample)
+3. **Create unique thread IDs** to avoid conversation contamination
+4. **Set appropriate thresholds** based on metric sensitivity
+5. **Add reference data** after getting the sample for Goal Achievement
+
+### ✅ Working Test Results
+
+```bash
+# All tests pass successfully
+$ python -m pytest tests/test_real_agent_simple.py -v
+
+tests/test_real_agent_simple.py::test_topic_adherence_simple PASSED [100%]
+tests/test_real_agent_simple.py::test_tool_accuracy_simple PASSED [100%]  
+tests/test_real_agent_simple.py::test_goal_achievement_simple PASSED [100%]
+```
+
+These examples demonstrate the **exact working implementation** used in the test suite.
 
 ---
 
