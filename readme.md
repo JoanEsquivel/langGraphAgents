@@ -1,14 +1,15 @@
-# LangGraph Agents Learning Project
+# LangGraph Agent Testing with RAGAS Evaluation Framework
 
-A comprehensive tutorial project for building AI agents using LangChain and LangGraph, following the official tutorials with practical implementations.
+A comprehensive LangGraph agent implementation with industry-standard RAGAS evaluation for QA professionals. This project demonstrates building AI agents using LangChain and LangGraph, followed by rigorous testing using the RAGAS (Retrieval Augmented Generation Assessment) framework.
 
-## 🎯 Overview
+## 🎯 Project Overview
 
-This project demonstrates the progressive evolution from basic chatbots to advanced AI agents with tool integration and persistent memory:
+This project demonstrates the complete lifecycle from AI agent development to production-ready testing:
 
-- **LangChain** provides the foundational building blocks (LLMs, prompts, retrievers, agents) for AI applications
-- **LangGraph** orchestrates these components as a graph, enabling stateful, multi-step, and controllable agent workflows
-- **Progression**: Each tutorial builds upon the previous one, adding complexity and capabilities
+- **Agent Development**: Progressive evolution from basic chatbots to advanced memory-enabled agents
+- **RAGAS Integration**: Industry-standard evaluation framework for AI agent assessment  
+- **Real Agent Testing**: Tests execute actual agent code, not mock responses
+- **QA Best Practices**: Comprehensive metrics, thresholds, and action items
 
 ## 📈 Evolution Diagram
 
@@ -30,16 +31,17 @@ graph LR
             F2 --> B2
         end
         
-        subgraph "Tutorial 3: + Memory"
+        subgraph "Tutorial 3: + Memory + RAGAS Testing"
             A3["User Input<br/>Thread ID"] --> B3["Chatbot Node"]
             B3 --> C3{{"Memory Check<br/>+ tools_condition"}}
             C3 -->|Load State| D3["Previous Context"]
             C3 -->|Tool needed| E3["Tools Node"]
             C3 -->|Response ready| F3["Save State"]
             D3 --> B3
-            E3 --> G3["Web Search"]
+            E3 --> G3["Tavily Search"]
             G3 --> B3
             F3 --> H3["Response"]
+            H3 --> I3["RAGAS Evaluation"]
         end
     end
     
@@ -65,13 +67,14 @@ graph LR
     style H3 fill:#388e3c
 ```
 
-## 📚 Tutorials Implemented
+## 📚 Tutorial Implementation
 
 | Tutorial | Script | Description | Key Features |
 |----------|--------|-------------|--------------|
 | [Tutorial 1](https://langchain-ai.github.io/langgraph/tutorials/get-started/1-build-basic-chatbot/) | `src/1_basic_chat_bot.py` | Basic stateful chatbot | 🔄 Message history, 📝 State management |
 | [Tutorial 2](https://langchain-ai.github.io/langgraph/tutorials/get-started/2-add-tools/) | `src/2_basic_chat_bot_with_tools.py` | Advanced chatbot with web search | 🔍 Tool integration, 🤖 Intelligent routing |
 | [Tutorial 3](https://langchain-ai.github.io/langgraph/tutorials/get-started/3-add-memory/) | `src/3_basic_chat_bot_with_tools_memory.py` | **Memory-enabled chatbot** | 🧠 **Persistent memory**, 🔀 **Multi-conversation** |
+| **RAGAS Testing** | `tests/test_real_agent.py` | **Production Testing Suite** | 🧪 **RAGAS evaluation**, ⚡ **Real agent testing** |
 
 ## 🚀 Quick Start
 
@@ -537,367 +540,584 @@ Goodbye!
 
 ## 🧪 RAGAS Agent Evaluation Framework
 
-This project includes a comprehensive RAGAS-based evaluation framework for testing the agent's performance using industry-standard metrics. The evaluation focuses on the `3_basic_chat_bot_with_tools_memory.py` script and measures three key aspects of agent behavior.
+### Why RAGAS for AI Agent Testing?
 
-### 📊 Evaluation Metrics Overview
+**RAGAS (Retrieval Augmented Generation Assessment)** is the industry standard for evaluating AI agents because:
 
-| Metric | Purpose | Score Range | Threshold | Key Evaluation |
-|--------|---------|-------------|-----------|----------------|
-| **Topic Adherence** | Measures how well the agent stays within predefined topics | 0.0 - 1.0 | ≥ 0.7 | Topical consistency and appropriate redirections |
-| **Tool Call Accuracy** | Evaluates the correctness of tool usage and parameters | 0.0 - 1.0 | ≥ 0.8 | Tool selection precision and parameter accuracy |
-| **Agent Goal Accuracy** | Assesses how effectively the agent achieves user goals | 0.0 - 1.0 | ≥ 0.7 | Goal understanding and fulfillment quality |
+- **📊 Objective Metrics**: Provides quantifiable scores (0.0-1.0) instead of subjective assessments
+- **🏭 Production Ready**: Used by major AI companies for agent evaluation in production
+- **🔬 Multi-Dimensional**: Evaluates different aspects of agent behavior simultaneously
+- **📈 Benchmarking**: Enables consistent comparison across agent versions and competitors
+- **🤖 LLM-as-Judge**: Uses advanced LLMs to evaluate responses, mimicking human judgment at scale
 
-### 🎯 Topic Adherence
+### Test Architecture Overview
 
-**What it measures**: The agent's ability to maintain conversation within appropriate topics and handle off-topic requests gracefully.
+```mermaid
+graph TD
+    A["🧪 pytest test_real_agent.py"] --> B["🔧 RealAgentRunner"]
+    B --> C["📦 Recreate Actual Agent"]
+    C --> D["3_basic_chat_bot_with_tools_memory.py"]
+    D --> E["💬 Execute Real Conversations"]
+    E --> F["📊 RAGAS Evaluation"]
+    
+    subgraph "Agent Components"
+        G["🤖 Ollama LLM<br/>qwen2.5:7b-instruct"]
+        H["🔍 Tavily Search Tool"]
+        I["🧠 InMemorySaver<br/>Conversation Memory"]
+        J["🔄 LangGraph Orchestration"]
+    end
+    
+    subgraph "RAGAS Metrics"
+        K["📌 Topic Adherence Score<br/>Threshold: ≥0.4"]
+        L["🛠️ Tool Usage Analysis<br/>Custom Validation"]
+        M["🎯 Goal Achievement Score<br/>Threshold: ≥0.4"]
+    end
+    
+    C --> G
+    C --> H
+    C --> I  
+    C --> J
+    F --> K
+    F --> L
+    F --> M
+```
 
-#### ✅ High Score Indicators (0.7-1.0)
-- Stays focused on technology, science, news, weather, and information topics
-- Appropriately redirects off-topic personal questions
-- Maintains professional boundaries while being helpful
-- Consistent topic focus across multi-turn conversations
+## 📊 RAGAS Metrics Deep Dive
 
-#### ❌ Low Score Indicators (0.0-0.6)
-- Engages with inappropriate personal or off-topic requests
-- Frequently strays from the intended conversation domain
-- Inconsistent topic handling across conversation turns
-- Fails to redirect inappropriate requests professionally
+### 1. 📌 Topic Adherence Score (TopicAdherenceScore)
 
-#### 🔧 Action Items for Low Scores
-- **Score 0.5-0.6**: Review agent prompts for clearer topic guidance
-- **Score 0.3-0.4**: Implement stronger topic filtering and redirection logic
-- **Score 0.0-0.2**: Redesign agent instructions with explicit topic boundaries
+#### What It Measures
+Evaluates how well the agent maintains focus on appropriate topics and handles topic transitions professionally.
 
-### 🛠️ Tool Call Accuracy
+#### How It Works
+```mermaid
+graph LR
+    A["👤 User Questions"] --> B["🤖 Agent Responses"]
+    B --> C["📝 Conversation Sample"]
+    C --> D["🏷️ Reference Topics<br/>weather, automation testing,<br/>CI/CD, technical info"]
+    D --> E["🧠 RAGAS LLM Judge<br/>Ollama qwen2.5:7b"]
+    E --> F["📊 Score: 0.0-1.0"]
+    
+    subgraph "Evaluation Process"
+        G["1. Extract conversation turns"]
+        H["2. Compare against reference topics"]
+        I["3. Assess topic consistency"]
+        J["4. Evaluate redirections"]
+    end
+    
+    C --> G
+    G --> H
+    H --> I
+    I --> J
+    J --> E
+```
 
-**What it measures**: The precision with which the agent selects and uses available tools to fulfill user requests.
+#### Test Implementation
+```python
+# Real test from test_real_agent.py (lines 75-84)
+sample = MultiTurnSample(
+    user_input=conversation,
+    reference_topics=[
+        "weather information", "current weather conditions", "temperature", "climate",
+        "automation testing", "automated testing", "test automation", "testing frameworks", 
+        "quality assurance", "QA", "software testing", "testing best practices",
+        "CI/CD pipelines", "continuous integration", "continuous deployment", "DevOps",
+        "software development", "testing tools", "technical information"
+    ]
+)
 
-#### ✅ High Score Indicators (0.8-1.0)
-- Correctly identifies when search tools are needed
-- Provides accurate and relevant search parameters
-- Uses appropriate tools for specific types of queries
-- Avoids unnecessary tool calls for simple questions
+scorer = TopicAdherenceScore(llm=langchain_llm_ragas_wrapper, mode="recall")
+score = await scorer.multi_turn_ascore(sample)
+```
 
-#### ❌ Low Score Indicators (0.0-0.7)
-- Fails to use search tools when external information is needed
-- Provides irrelevant or poorly constructed search queries
-- Uses tools inappropriately for simple questions
-- Incorrect tool parameter formatting
+#### Score Interpretation & Action Items
 
-#### 🔧 Action Items for Low Scores
-- **Score 0.6-0.7**: Improve tool selection criteria and parameter validation
-- **Score 0.4-0.5**: Enhance query processing and tool routing logic
-- **Score 0.0-0.3**: Redesign tool integration with clearer usage patterns
+| Score Range | Interpretation | Action Items |
+|-------------|----------------|--------------|
+| **1.0** | Perfect topic adherence | ✅ Maintain current prompts and guardrails |
+| **0.8-0.9** | Excellent focus | ✅ Minor prompt optimization opportunities |
+| **0.6-0.7** | Good with minor drift | 🔄 Review topic boundaries in system prompts |
+| **0.4-0.5** | Acceptable (passes threshold) | ⚠️ Strengthen topic filtering logic |
+| **0.2-0.3** | Poor topic management | 🚨 Redesign agent instructions with explicit topic boundaries |
+| **0.0-0.1** | Significant topic drift | 🚨 Complete prompt redesign required |
 
-### 🎯 Agent Goal Accuracy
+**Real Test Example:**
+```bash
+📊 RAGAS EVALUATION RESULTS:
+   🎯 Adherence Score: 1.000
+   📏 Acceptance Threshold: 0.4
+   ✅ PASS: Acceptable topic adherence maintained
+```
 
-**What it measures**: How effectively the agent understands and fulfills the user's underlying objectives and goals.
+### 2. 🛠️ Tool Usage Analysis (Custom Implementation)
 
-#### ✅ High Score Indicators (0.7-1.0)
-- Provides comprehensive responses that address user's specific needs
-- Successfully completes information gathering and research tasks
-- Demonstrates understanding of complex, multi-part requests
-- Delivers actionable and relevant information
+#### What It Measures  
+Evaluates the agent's ability to correctly identify when tools are needed and use them with appropriate parameters.
 
-#### ❌ Low Score Indicators (0.0-0.6)
-- Provides incomplete or irrelevant responses to user requests
-- Fails to address the core objectives of user queries
-- Misunderstands complex requests or multi-part questions
-- Delivers low-quality or insufficient information
+#### How It Works
+```mermaid
+graph TD
+    A["❓ User Query<br/>'Search recent testing news'"] --> B["🤖 Agent Analysis"]
+    B --> C{"🤔 Tool Required?"}
+    C -->|Yes| D["🔍 Tool Selection"]
+    C -->|No| E["❌ FAIL: Should use tools"]
+    D --> F["📝 Parameter Generation"]
+    F --> G["🔧 Tool Execution"]
+    G --> H["📊 Analysis Results"]
+    
+    subgraph "Validation Checks"
+        I["✓ Tools activated > 0"]
+        J["✓ Correct tool selected (Tavily)"]
+        K["✓ Relevant search queries"]
+        L["✓ Appropriate parameters"]
+    end
+    
+    H --> I
+    H --> J
+    H --> K
+    H --> L
+```
 
-#### 🔧 Action Items for Low Scores
-- **Score 0.5-0.6**: Improve response comprehensiveness and relevance checking
-- **Score 0.3-0.4**: Enhance goal understanding and multi-objective handling
-- **Score 0.0-0.2**: Redesign agent architecture with better intent recognition
+#### Test Implementation
+```python
+# Real test from test_real_agent.py (lines 132-168)
+research_question = "Please search for recent news about automation testing frameworks and tools"
+result = agent.ask_agent(research_question)
 
-### 🧪 Test Suite Structure
+# Validate tool usage
+assert result['tools_used'] > 0, f"Agent should use tools for search requests but used {result['tools_used']} tools"
+
+# Verify tool selection
+tool_names = [tc['name'] for tc in result['tool_calls']]
+if any("tavily" in name.lower() for name in tool_names):
+    print(f"   ✅ Correctly selected Tavily for web search")
+
+# Check query relevance
+relevant_keywords = ["automation testing", "test automation", "testing frameworks", "selenium", "cypress", "playwright"]
+query_text = ' '.join(queries).lower()
+if any(keyword in query_text for keyword in relevant_keywords):
+    print(f"   ✅ Search queries contain relevant keywords")
+```
+
+#### Analysis & Action Items
+
+| Tool Usage Result | Interpretation | Action Items |
+|-------------------|----------------|--------------|
+| **Tools Used: >0, Correct Tool, Relevant Query** | Perfect tool usage | ✅ Tool integration working optimally |
+| **Tools Used: >0, Correct Tool, Poor Query** | Tool selection good, query needs work | 🔄 Improve query generation logic |
+| **Tools Used: >0, Wrong Tool** | Tool selection logic issues | ⚠️ Review tool routing conditions |
+| **Tools Used: 0** | Failed to identify tool need | 🚨 Enhance tool usage detection |
+
+**Real Test Example:**
+```bash
+📊 TOOL USAGE ANALYSIS:
+   • Tools Activated: 1
+   • Tool Call 1: tavily_search
+     Arguments: {'query': 'recent news about automation testing frameworks and tools', 'search_depth': 'advanced'}
+   ✅ Correctly selected Tavily for web search
+   📝 Search Queries Generated: ['recent news about automation testing frameworks and tools']
+   ✅ Search queries contain relevant keywords
+```
+
+### 3. 🎯 Goal Achievement Score (AgentGoalAccuracyWithReference)
+
+#### What It Measures
+Assesses how effectively the agent understands and fulfills complex user objectives using a reference standard.
+
+#### How It Works
+```mermaid
+graph LR
+    A["📋 User Goal<br/>'Research test automation<br/>frameworks and summarize'"] --> B["🤖 Agent Execution"]
+    B --> C["🔍 Tool Usage"]
+    C --> D["📝 Response Generation"] 
+    D --> E["📚 Reference Standard<br/>'Agent should research and<br/>provide summary about test<br/>automation developments'"]
+    E --> F["🧠 RAGAS LLM Judge"]
+    F --> G["📊 Achievement Score<br/>0.0-1.0"]
+    
+    subgraph "Evaluation Criteria"
+        H["Completeness of research"]
+        I["Quality of summary"]
+        J["Relevance to request"]
+        K["Use of appropriate tools"]
+    end
+    
+    F --> H
+    F --> I  
+    F --> J
+    F --> K
+```
+
+#### Test Implementation
+```python
+# Real test from test_real_agent.py (lines 195-266)
+task_request = "Please research the latest developments in test automation frameworks and provide a brief summary"
+
+# Execute task
+result = agent.ask_agent(task_request)
+
+# Create conversation for RAGAS
+conversation = [
+    HumanMessage(content=task_request),
+    AIMessage(
+        content=result['response'], 
+        tool_calls=[ToolCall(name=tc['name'], args=tc['args']) for tc in result['tool_calls']]
+    )
+]
+
+# Define reference standard
+reference_goal = "Agent should research and provide a summary about test automation framework developments"
+
+# Evaluate with RAGAS
+sample = MultiTurnSample(user_input=conversation, reference=reference_goal)
+scorer = AgentGoalAccuracyWithReference(llm=langchain_llm_ragas_wrapper)
+score = await scorer.multi_turn_ascore(sample)
+```
+
+#### Score Interpretation & Action Items
+
+| Score Range | Performance Level | Action Items |
+|-------------|------------------|--------------|
+| **0.9-1.0** | Exceptional goal achievement | ✅ Document approach for consistency |
+| **0.7-0.8** | Excellent goal fulfillment | ✅ Minor response quality improvements |
+| **0.5-0.6** | Good goal understanding | 🔄 Enhance comprehensiveness of responses |
+| **0.4** | Meets threshold | ⚠️ Improve goal parsing and execution logic |
+| **0.2-0.3** | Poor goal achievement | 🚨 Redesign intent recognition system |
+| **0.0-0.1** | Failed to understand goals | 🚨 Complete architecture review needed |
+
+**Real Test Example:**
+```bash
+📊 GOAL ACHIEVEMENT RESULTS:
+   🎯 Goal Accuracy Score: 1.000
+   📋 Reference Standard: Agent should research and provide a summary about test automation framework developments
+   🔧 Tools Used: 1
+   📝 Response Length: 1747 characters
+   ✅ EXCELLENT: High goal achievement accuracy
+```
+
+## 🏗️ Test Infrastructure Deep Dive
+
+### RealAgentRunner Architecture
+
+The `RealAgentRunner` class creates an exact replica of the production agent for testing:
+
+```mermaid
+graph TD
+    A["🧪 Test Case"] --> B["🔧 RealAgentRunner(test_name)"]
+    B --> C["📦 Agent Recreation"]
+    
+    subgraph "Agent Components Recreation"
+        D["🤖 ChatOllama<br/>model: qwen2.5:7b-instruct<br/>temperature: 0.0<br/>base_url: localhost:11434"]
+        E["🔍 Tavily Search Tool<br/>max_results: 2"]
+        F["🧠 InMemorySaver<br/>Memory System"]
+        G["🔄 StateGraph<br/>+ ToolNode<br/>+ tools_condition"]
+    end
+    
+    subgraph "Test Execution"
+        H["❓ ask_agent(question)"]
+        I["💬 Agent Streaming"]
+        J["📊 Response Capture"]
+        K["🔧 Tool Call Analysis"]
+    end
+    
+    C --> D
+    C --> E
+    C --> F
+    C --> G
+    B --> H
+    H --> I
+    I --> J
+    I --> K
+```
+
+### Test File Structure
 
 ```
 tests/
-├── test_real_agent.py               # 🤖 REAL agent evaluation (recommended)
-├── test_topic_adherence.py          # 📚 Static RAGAS example 
-├── test_tool_call_accuracy.py       # 📚 Static RAGAS example
-├── test_agent_goal_accuracy.py      # 📚 Static RAGAS example  
-├── conftest.py                      # Simple test configuration
-└── pytest.ini                      # Pytest configuration
+├── 📄 conftest.py                 # Test configuration & fixtures
+├── 📄 test_real_agent.py          # 🎯 Main RAGAS evaluation suite
+├── 📁 helpers/
+│   ├── 📄 __init__.py
+│   └── 📄 utils.py                # 🔧 RealAgentRunner implementation
+└── 📄 pytest.ini                 # Pytest configuration
 ```
 
-**🎯 Two Types of Tests:**
+### Configuration Details
 
-1. **`test_real_agent.py` - Real Agent Tests** ⭐ **RECOMMENDED**
-   - Actually executes your `3_basic_chat_bot_with_tools_memory.py` script
-   - Tests the real agent behavior and responses
-   - Uses RAGAS to evaluate actual conversations
-   - Shows what your agent really does
+#### conftest.py - Test Environment Setup
+- **Ollama Integration**: Connects to local Ollama server
+- **Health Checks**: Validates server availability before tests
+- **RAGAS LLM Wrapper**: Configures evaluation LLM
+- **Temperature**: Set to 0.0 for deterministic responses
 
-2. **Static RAGAS Examples** 
-   - Pre-written conversation examples following RAGAS patterns
-   - Good for understanding RAGAS format
-   - Always return perfect scores (1.000)
+#### utils.py - Agent Recreation Logic  
+- **Exact Replication**: Mirrors production agent setup exactly
+- **Memory Management**: Uses InMemorySaver for conversation persistence
+- **Tool Integration**: Configures Tavily search with same parameters
+- **Response Capture**: Extracts structured data for RAGAS evaluation
 
-### 📝 Simple Test Examples
+## 🚀 Running the Evaluation Suite
 
-Each test follows the RAGAS example pattern with clear, realistic scenarios:
+### Prerequisites Setup
 
-#### **1. Topic Adherence Test** (`test_topic_adherence_weather_to_offtopic`)
-```python
-# Conversation starts with weather (appropriate topic)
-# Then user asks about personal problems (off-topic)
-# Tests if agent redirects appropriately while staying professional
-
-HumanMessage: "Can you check the current weather in San Francisco?"
-AIMessage: Uses tavily_search_results_json to search weather
-HumanMessage: "What do you think about my relationship problems?"  # Off-topic!
-AIMessage: "I'm designed to help with information search... recommend counselor"  # Good redirect
-```
-
-#### **2. Tool Call Accuracy Test** (`test_tool_call_accuracy_weather_search`)  
-```python
-# Tests if agent uses correct tools with appropriate parameters
-
-HumanMessage: "What's the weather like in New York right now?"
-AIMessage: ToolCall(name="tavily_search_results_json", args={"query": "current weather New York"})
-HumanMessage: "Can you also check tomorrow's forecast?"  
-AIMessage: ToolCall(name="tavily_search_results_json", args={"query": "weather forecast tomorrow New York"})
-
-# Compares against reference_tool_calls to verify accuracy
-```
-
-#### **3. Agent Goal Accuracy Test** (`test_agent_goal_accuracy_research_task`)
-```python
-# Tests if agent achieves user's research goal comprehensively
-
-HumanMessage: "I need to research electric vehicles for a school project"
-AIMessage: Searches for EV benefits, then market data
-AIMessage: Provides organized summary with benefits + market statistics
-
-# Goal: "Comprehensive research information provided about electric vehicles"
-# Agent should fulfill this goal completely
-```
-
-### 🚀 Running the Evaluation
-
-#### Prerequisites
 ```bash
-# Install evaluation dependencies
+# 1. Create virtual environment
+python -m venv venv_foundational_agents
+source venv_foundational_agents/bin/activate  # Linux/Mac
+# OR
+venv_foundational_agents\Scripts\activate     # Windows
+
+# 2. Install dependencies
 pip install -r requirements.txt
 
-# Ensure agent dependencies are available
-# - Ollama server running with qwen2.5:7b-instruct model
-# - Optional: Tavily API key for tool testing
+# 3. Start Ollama server with required model
+ollama serve
+ollama pull qwen2.5:7b-instruct
+
+# 4. Optional: Configure API keys in .env
+cp env.example .env
+# Edit .env with your Tavily API key
 ```
 
-#### Execute Complete Evaluation
+### Test Execution Commands
 
-**🤖 Tests with REAL Agent (Recommended):**
+#### Complete Evaluation Suite
 ```bash
-# Run all tests that actually execute your 3_basic_chat_bot_with_tools_memory.py
-pytest tests/test_real_agent.py -v
+# Run all RAGAS tests with detailed output
+pytest tests/test_real_agent.py -v -s
 
-# Individual real agent tests with detailed logs
-pytest tests/test_real_agent.py::test_real_agent_weather_question -v -s
-pytest tests/test_real_agent.py::test_real_agent_topic_adherence_simple -v -s  
+# Expected runtime: ~3-5 minutes per test
+# Total suite: ~10-15 minutes
+```
+
+#### Individual Test Execution  
+```bash
+# Topic Adherence Test
+pytest tests/test_real_agent.py::test_real_agent_topic_adherence_simple -v -s
+
+# Tool Usage Analysis  
 pytest tests/test_real_agent.py::test_real_agent_tool_accuracy_simple -v -s
+
+# Goal Achievement Test
+pytest tests/test_real_agent.py::test_real_agent_goal_accuracy_with_reference -v -s
 ```
 
-**📚 Static RAGAS Examples (For reference):**
+### 📝 Real Test Output Examples
+
+**Topic Adherence Test Output:**
 ```bash
-# Run the static conversation examples
-pytest tests/test_topic_adherence.py tests/test_tool_call_accuracy.py tests/test_agent_goal_accuracy.py -v
-```
-
-#### Sample Test Output
-
-**🤖 Real Agent Evaluation (test_real_agent.py):**
-```bash
-$ pytest tests/test_real_agent.py::test_real_agent_topic_adherence_simple -v -s
-
 ============================================================
-🧪 TEST: Adherencia al tema (RAGAS)
+🧪 TEST: Topic Adherence Assessment (RAGAS)  
 ============================================================
-🔧 Inicializando agente real...
+🔧 Inicializando agente real para: TopicAdherenceTest
+✅ Loaded environment variables from /path/to/.env
+🔍 LangSmith tracing enabled for project: langgraphagents
+🔍 Tavily API key configured: tvly-dev...
+✅ Tavily search tool configured (max_results=2)
+✅ Tavily tool ready for web search
 ✅ Agente real listo
-❓ Usuario: ¿Cuál es el clima en Barcelona?
-🤖 Agente: Según la información más reciente encontrada: Se espera lluvia débil...
+
+❓ Usuario: What are the current weather conditions in Barcelona, Spain?
+🤖 Agente: The current weather conditions in Barcelona, Spain are as follows:
+- Temperature: 26.3°C (79.3°F)
+- Conditions: Patchy rain nearby...
 🔧 Herramientas usadas: ['tavily_search']
-❓ Usuario: ¿Qué opinas de mis problemas de pareja?
-🤖 Agente: Entiendo que estás pasando por un momento difícil...
 
-📝 Creando conversación para RAGAS...
-🎯 Evaluando con RAGAS TopicAdherenceScore...
+❓ Usuario: What are the best practices for implementing automated testing in CI/CD pipelines?
+🤖 Agente: Here are some best practices for implementing automated testing in CI/CD pipelines:
+### 1. **Integrate Automated Testing...
+🔧 Herramientas usadas: ['tavily_search']
 
-📊 RESULTADOS RAGAS:
-   🎯 Score: 0.500
-   📏 Threshold: 0.4 (flexible)
-   ✅ PASS: Adherencia aceptable
+📝 Constructing RAGAS conversation sample...
+🎯 Evaluating topic adherence with RAGAS scorer...
 
-🔍 ANÁLISIS:
-   • Agente mencionó el tema personal
-   • Agente ofreció redirección apropiada
-✅ TEST COMPLETADO: Adherencia evaluada
-
-PASSED
+📊 RAGAS EVALUATION RESULTS:
+   🎯 Adherence Score: 1.000
+   📏 Acceptance Threshold: 0.4
+   ✅ PASS: Acceptable topic adherence maintained
+✅ TEST COMPLETED: Topic adherence successfully evaluated
 ```
 
-**📚 Static Example Output:**
-```bash
-$ pytest tests/test_topic_adherence.py -v -s
+## 🎯 QA Best Practices & Action Items
 
-🎯 Topic Adherence Score: 1.000
-✅ Expected: Agent should stay focused on weather/information topics  
-✅ PASSED: Topic adherence score 1.000 meets threshold
+### Performance Benchmarks
+
+| Metric | Excellent | Good | Needs Improvement | Critical |
+|--------|-----------|------|-------------------|----------|
+| **Topic Adherence** | ≥0.8 | 0.6-0.7 | 0.4-0.5 | <0.4 |
+| **Tool Usage** | 100% success | Minor issues | Partial success | Failure |
+| **Goal Achievement** | ≥0.8 | 0.6-0.7 | 0.4-0.5 | <0.4 |
+
+### Continuous Improvement Workflow
+
+```mermaid
+graph LR
+    A["📊 Run RAGAS Tests"] --> B{"📈 Scores Meet<br/>Thresholds?"}
+    B -->|Yes| C["✅ Deploy to Production"]
+    B -->|No| D["📝 Analyze Failures"]
+    D --> E["🔧 Implement Fixes"]
+    E --> F["🧪 Retest"]
+    F --> A
+    
+    subgraph "Fix Categories"
+        G["📌 Topic: Update prompts/guardrails"]
+        H["🛠️ Tools: Fix routing logic"]
+        I["🎯 Goals: Enhance comprehension"]
+    end
+    
+    D --> G
+    D --> H
+    D --> I
 ```
 
-### 📈 Performance Interpretation Guide
+### Integration with CI/CD
 
-#### 🟢 Excellent Performance (0.9-1.0)
-- **Topic Adherence**: Agent maintains perfect topic boundaries
-- **Tool Accuracy**: Flawless tool selection and parameter usage  
-- **Goal Accuracy**: Consistently exceeds user expectations
+```yaml
+# Example GitHub Actions integration
+name: RAGAS Agent Evaluation
+on: [push, pull_request]
 
-#### 🟡 Good Performance (0.7-0.8)
-- **Topic Adherence**: Mostly stays on topic with minor deviations
-- **Tool Accuracy**: Generally correct tool usage with occasional parameter issues
-- **Goal Accuracy**: Usually fulfills goals but may miss some nuances
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      ollama:
+        image: ollama/ollama:latest
+        ports:
+          - 11434:11434
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Pull Ollama model
+        run: ollama pull qwen2.5:7b-instruct
+      - name: Run RAGAS evaluation
+        run: pytest tests/test_real_agent.py -v
+        env:
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+```
 
-#### 🟠 Needs Improvement (0.5-0.6)
-- **Topic Adherence**: Frequent topic drift requiring intervention
-- **Tool Accuracy**: Tool selection issues affecting response quality
-- **Goal Accuracy**: Partially addresses goals but lacks completeness
+## 📖 Quick Start Guide
 
-#### 🔴 Requires Immediate Attention (0.0-0.4)
-- **Topic Adherence**: Significant off-topic behavior
-- **Tool Accuracy**: Major tool usage failures
-- **Goal Accuracy**: Consistently fails to meet user objectives
+### For QA Teams
 
-### 🎯 Key Features
+1. **Install & Configure**
+   ```bash
+   git clone <repository>
+   cd langGraphAgents
+   pip install -r requirements.txt
+   ollama serve && ollama pull qwen2.5:7b-instruct
+   ```
 
-- **✅ Simple & Clear**: Each test is one straightforward scenario
-- **📖 RAGAS Pattern**: Follows official RAGAS examples exactly  
-- **🔧 Realistic**: Uses actual agent tools (`tavily_search_results_json`)
-- **⚡ Fast**: Direct evaluation without complex setup
-- **🎨 Visual Output**: Clear pass/fail with score display
+2. **Run Initial Assessment**
+   ```bash
+   pytest tests/test_real_agent.py -v -s
+   ```
 
-### 💡 Understanding the Scores
+3. **Interpret Results**
+   - Review score outputs for each metric
+   - Check threshold compliance (≥0.4 for all metrics)
+   - Identify improvement areas based on action items
 
-- **Score 1.000**: Perfect performance (ideal scenario)
-- **Score 0.8+**: Excellent performance 
-- **Score 0.7+**: Good performance (meets threshold)
-- **Score 0.5-0.6**: Needs improvement
-- **Score <0.5**: Requires attention
+4. **Implement Improvements**
+   - Topic issues: Update system prompts
+   - Tool issues: Fix routing logic  
+   - Goal issues: Enhance task comprehension
 
-### 🔧 Customizing Tests
+5. **Validate Changes**
+   ```bash
+   pytest tests/test_real_agent.py -v -s
+   ```
 
-To modify thresholds, edit the assert statements:
+### For Development Teams
+
+1. **Agent Development** 
+   - Follow tutorials 1-3 for basic implementation
+   - Focus on `src/3_basic_chat_bot_with_tools_memory.py` as main target
+
+2. **Testing Integration**
+   - Tests automatically use your agent implementation
+   - No mocking required - real agent responses evaluated
+
+3. **Continuous Monitoring**
+   - Run tests on every agent modification
+   - Track score trends over time
+   - Set up CI/CD integration for automated evaluation
+
+## 🔧 Advanced Configuration
+
+### Custom Thresholds
+
+Modify thresholds in `test_real_agent.py`:
+
 ```python
-# In any test file
-assert score >= 0.7  # Change threshold as needed
+# Topic Adherence (line 105)
+assert score >= 0.6, f"Custom threshold: RAGAS TopicAdherenceScore {score:.3f} below 0.6"
+
+# Goal Achievement (line 265)  
+assert score >= 0.7, f"Custom threshold: RAGAS AgentGoalAccuracyWithReference score {score:.3f} below 0.7"
 ```
 
-To add new scenarios, create similar conversation patterns following the RAGAS examples.
+### Different LLM Backends
 
-## 🔧 Environment Configuration
+Update `conftest.py` for alternative evaluation LLMs:
 
-### LangSmith Tracing (Optional)
+```python
+# Using OpenAI for evaluation
+llm = ChatOpenAI(model="gpt-4", temperature=0.0)
+return LangchainLLMWrapper(llm)
 
-For monitoring and debugging conversations:
+# Using Anthropic for evaluation  
+llm = ChatAnthropic(model="claude-3-sonnet-20240229", temperature=0.0)
+return LangchainLLMWrapper(llm)
+```
 
-1. **Copy the environment template:**
-   ```bash
-   cp env.example .env
-   ```
+### Additional Test Scenarios
 
-2. **Edit the `.env` file with your API credentials:**
-   ```bash
-   # LangSmith Configuration (Optional - for tracing)
-   LANGSMITH_TRACING=true
-   LANGSMITH_API_KEY=your_langsmith_api_key_here
-   LANGSMITH_PROJECT=langraph-chatbot
-   LANGSMITH_ENDPOINT=https://api.smith.langchain.com
-   
-   # Tavily Configuration (Optional - for web search in tutorials 2-3)
-   TAVILY_API_KEY=your_tavily_api_key_here
-   ```
+Extend `test_real_agent.py` with custom scenarios:
 
-3. **Get your API keys:**
-   - **LangSmith**: [smith.langchain.com](https://smith.langchain.com/) (for tracing)
-   - **Tavily**: [tavily.com](https://tavily.com/) (for web search in tutorials 2-3)
+```python
+@pytest.mark.asyncio
+async def test_custom_scenario(langchain_llm_ragas_wrapper):
+    agent = RealAgentRunner("CustomTest")
+    
+    # Your custom test logic here
+    result = agent.ask_agent("Your custom query")
+    
+    # Custom RAGAS evaluation
+    # Implementation details...
+```
 
-### Environment Features
+## 📚 Learning Resources & References
 
-The setup automatically:
-- ✅ Loads environment variables from `.env` file (if it exists)
-- 🔧 Supports both `LANGSMITH_` and `LANGCHAIN_` variable prefixes
-- 🔄 Maps LangSmith variables to LangChain tracing internally
-- 🔍 Displays tracing status on startup
-- 📊 Sends traces to LangSmith when configured
-- ⚠️ Works normally without LangSmith (tracing disabled)
+### RAGAS Documentation
+- [RAGAS Official Documentation](https://docs.ragas.io/)
+- [RAGAS GitHub Repository](https://github.com/explodinggradients/ragas)
+- [Multi-turn Evaluation Guide](https://docs.ragas.io/en/stable/concepts/metrics/multi_turn.html)
 
-### Tavily Configuration
-
-To enable web search capabilities in tutorials 2-3:
-
-1. **Get Tavily API Key**: Visit [tavily.com](https://tavily.com/) to get your API key
-2. **Add to `.env`**: Include `TAVILY_API_KEY=your_api_key_here`
-3. **Tool Status**: The script will show:
-   - ✅ `Tavily search tool configured` if API key is valid
-   - ⚠️ `TAVILY_API_KEY not found` if not configured
-
-**Without Tavily**: The chatbot will still work but without web search capabilities.
-
-## 🎓 Learning Path
-
-### Recommended Order
-
-1. **🚀 Start with Tutorial 1**: Understand basic LangGraph concepts
-   - Learn about `StateGraph`, message management, and simple flows
-   - Get comfortable with the basic chat interface
-
-2. **🔧 Progress to Tutorial 2**: Add tool integration
-   - Understand conditional edges and tool routing
-   - Learn about `ToolNode` and `tools_condition` prebuilt components
-   - Experience web search integration
-
-3. **🧠 Master Tutorial 3**: Implement persistent memory
-   - Understand checkpointing and state persistence
-   - Learn about thread management and multi-conversation support
-   - Combine memory with tool usage for powerful agents
-
-### Key Concepts Learned
-
-- **StateGraph**: Core LangGraph orchestration
-- **Message Management**: Using `add_messages` reducer
-- **Tool Integration**: Adding external capabilities
-- **Conditional Routing**: Intelligent decision making
-- **Memory/Checkpointing**: Persistent conversation state
-- **Thread Management**: Multiple conversation contexts
-- **Production Considerations**: Database backends, error handling
-
-## 📖 Learning Resources
-
+### LangGraph Resources
 - [LangGraph Concepts](https://langchain-ai.github.io/langgraph/concepts/why-langgraph/)
-- [Tutorial 1: Build a Basic Chatbot](https://langchain-ai.github.io/langgraph/tutorials/get-started/1-build-basic-chatbot/)
-- [Tutorial 2: Add Tools](https://langchain-ai.github.io/langgraph/tutorials/get-started/2-add-tools/)
-- [Tutorial 3: Add Memory](https://langchain-ai.github.io/langgraph/tutorials/get-started/3-add-memory/)
-- [Tutorial 4: Human-in-the-Loop](https://langchain-ai.github.io/langgraph/tutorials/get-started/4-human-in-the-loop/)
-- [LangSmith Documentation](https://docs.smith.langchain.com/)
-- [Ollama Setup Guide](https://ollama.ai/)
+- [LangGraph Tutorials](https://langchain-ai.github.io/langgraph/tutorials/)
+- [LangGraph Testing Best Practices](https://langchain-ai.github.io/langgraph/how-tos/testing/)
 
-## 🔮 Next Steps
-
-After completing these tutorials, consider exploring:
-
-- **Tutorial 4**: Human-in-the-loop workflows
-- **Tutorial 5**: Custom state management
-- **Tutorial 6**: Time travel debugging
-- **Production Deployment**: Using PostgreSQL/SQLite for persistence
-- **Advanced Routing**: Custom conditional logic
-- **Multi-Agent Systems**: Agent collaboration patterns
+### QA & Testing
+- [AI Agent Testing Methodologies](https://blog.langchain.dev/testing-ai-agents/)
+- [LLM Evaluation Best Practices](https://blog.langchain.dev/evaluating-llm-apps/)
+- [Production AI System Monitoring](https://docs.smith.langchain.com/)
 
 ## 🤝 Contributing
 
-This project follows the official LangGraph tutorials. Contributions that improve clarity, add examples, or fix issues are welcome.
+This project follows QA best practices for AI agent testing. Contributions that enhance testing coverage, improve evaluation accuracy, or add new RAGAS metrics are welcome.
+
+### Development Guidelines
+- All agent modifications must pass RAGAS evaluation  
+- New features require corresponding test coverage
+- Performance regressions (score decreases) must be justified
+- Documentation updates required for new metrics or thresholds
 
 ## 📄 License
 
-This project is for educational purposes, following the MIT License.
+This project is for educational and professional development purposes, following the MIT License.

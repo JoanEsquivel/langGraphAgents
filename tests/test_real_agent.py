@@ -49,8 +49,8 @@ async def test_real_agent_topic_adherence_simple(langchain_llm_ragas_wrapper):
     print("🧪 TEST: Topic Adherence Assessment (RAGAS)")
     print("="*60)
     
-    # Create agent instance for conversation
-    agent = RealAgentRunner()
+    # Create agent instance for conversation with custom test name
+    agent = RealAgentRunner("TopicAdherenceTest")
     
     # First interaction: Professional weather query (on-topic)
     weather_question = "What are the current weather conditions in Barcelona, Spain?"
@@ -71,40 +71,38 @@ async def test_real_agent_topic_adherence_simple(langchain_llm_ragas_wrapper):
         AIMessage(content=result2['response'])         # Agent testing response
     ]
     
-    # Create RAGAS sample with reference topics for adherence measurement
+    # Create RAGAS sample with more comprehensive reference topics for adherence measurement
     sample = MultiTurnSample(
         user_input=conversation,
-        reference_topics=["weather", "automation testing", "quality assurance", "CI/CD pipelines"]
+        reference_topics=[
+            "weather information", "current weather conditions", "temperature", "climate",
+            "automation testing", "automated testing", "test automation", "testing frameworks",
+            "quality assurance", "QA", "software testing", "testing best practices",
+            "CI/CD pipelines", "continuous integration", "continuous deployment", "DevOps",
+            "software development", "testing tools", "technical information"
+        ]
     )
     
     print(f"🎯 Evaluating topic adherence with RAGAS scorer...")
     
     # Initialize and execute RAGAS topic adherence evaluation
-    scorer = TopicAdherenceScore(llm=langchain_llm_ragas_wrapper, mode="precision")
+    # Using 'recall' mode instead of 'precision' for more flexible evaluation
+    scorer = TopicAdherenceScore(llm=langchain_llm_ragas_wrapper, mode="recall")
     score = await scorer.multi_turn_ascore(sample)
     
     # Present evaluation results
     print(f"\n📊 RAGAS EVALUATION RESULTS:")
     print(f"   🎯 Adherence Score: {score:.3f}")
-    print(f"   📏 Acceptance Threshold: 0.4 (flexible)")
+    print(f"   📏 Acceptance Threshold: 0.4")
     
     # Interpret results
     if score >= 0.4:
         print(f"   ✅ PASS: Acceptable topic adherence maintained")
     else:
-        print(f"   ⚠️  WARN: Lower adherence detected but within functional range")
+        print(f"   ❌ FAIL: Topic adherence below required threshold")
     
-    # Conduct qualitative analysis of responses
-    print(f"\n🔍 QUALITATIVE ANALYSIS:")
-    if "testing" in result2['response'].lower() or "automation" in result2['response'].lower():
-        print(f"   • Agent addressed automation testing topic")
-    if "ci/cd" in result2['response'].lower() or "pipeline" in result2['response'].lower():
-        print(f"   • Agent discussed CI/CD pipeline concepts")
-    if "quality" in result2['response'].lower() or "assurance" in result2['response'].lower():
-        print(f"   • Agent covered quality assurance aspects")
-        
-    # Apply flexible threshold for functional acceptance
-    assert score >= 0.3, f"Score {score} indicates significant topic drift - review agent behavior"
+    # Apply RAGAS-based threshold for topic adherence
+    assert score >= 0.4, f"RAGAS TopicAdherenceScore {score:.3f} below acceptable threshold of 0.4"
     
     print("✅ TEST COMPLETED: Topic adherence successfully evaluated")
 
@@ -127,8 +125,8 @@ async def test_real_agent_tool_accuracy_simple():
     print("🧪 TEST: Tool Usage Accuracy Assessment")
     print("="*60)
     
-    # Initialize agent for tool testing
-    agent = RealAgentRunner()
+    # Initialize agent for tool testing with custom test name
+    agent = RealAgentRunner("ToolAccuracyTest")
     
     # Professional question that clearly requires web search tool usage
     research_question = "Please search for recent news about automation testing frameworks and tools"
@@ -137,47 +135,37 @@ async def test_real_agent_tool_accuracy_simple():
     print(f"\n📊 TOOL USAGE ANALYSIS:")
     print(f"   • Tools Activated: {result['tools_used']}")
     
-    # Analyze tool usage patterns
-    if result['tools_used'] > 0:
-        print(f"   ✅ Agent appropriately identified need for tool usage")
+    # Examine each tool call for accuracy
+    for i, tc in enumerate(result['tool_calls']):
+        print(f"   • Tool Call {i+1}: {tc['name']}")
+        print(f"     Arguments: {tc['args']}")
         
-        # Examine each tool call for accuracy
-        for i, tc in enumerate(result['tool_calls']):
-            print(f"   • Tool Call {i+1}: {tc['name']}")
-            print(f"     Arguments: {tc['args']}")
-            
-        # Verify correct tool selection
-        tool_names = [tc['name'] for tc in result['tool_calls']]
-        
-        # Check if Tavily search tool was used (expected for web searches)
-        if any("tavily" in name.lower() for name in tool_names):
-            print(f"   ✅ Correctly selected Tavily for web search")
-        
-        # Analyze search query relevance
-        queries = []
-        for tc in result['tool_calls']:
-            if 'query' in tc['args']:
-                queries.append(tc['args']['query'])
-                
-        # Verify query content alignment with request
-        if queries:
-            print(f"   📝 Search Queries Generated: {queries}")
-            relevant_keywords = ["automation testing", "test automation", "testing frameworks", "selenium", "cypress", "playwright"]
-            query_text = ' '.join(queries).lower()
-            
-            if any(keyword in query_text for keyword in relevant_keywords):
-                print(f"   ✅ Search queries contain relevant keywords")
-            else:
-                print(f"   ⚠️  Search queries may lack topic relevance")
-            
-    else:
-        # Agent responded without using tools
-        print(f"   ⚠️  Agent provided direct response without tool usage")
-        print(f"   📝 Direct Response Preview: {result['response'][:100]}...")
-        print(f"   💭 Consider: May indicate tool selection logic needs review")
+    # Verify correct tool selection
+    tool_names = [tc['name'] for tc in result['tool_calls']]
     
-    # Basic functionality assertion (flexible to allow different approaches)
-    assert result['tools_used'] >= 0, "Basic functionality test - agent must respond"
+    # Check if Tavily search tool was used (expected for web searches)
+    if any("tavily" in name.lower() for name in tool_names):
+        print(f"   ✅ Correctly selected Tavily for web search")
+    
+    # Analyze search query relevance
+    queries = []
+    for tc in result['tool_calls']:
+        if 'query' in tc['args']:
+            queries.append(tc['args']['query'])
+            
+    # Verify query content alignment with request
+    if queries:
+        print(f"   📝 Search Queries Generated: {queries}")
+        relevant_keywords = ["automation testing", "test automation", "testing frameworks", "selenium", "cypress", "playwright"]
+        query_text = ' '.join(queries).lower()
+        
+        if any(keyword in query_text for keyword in relevant_keywords):
+            print(f"   ✅ Search queries contain relevant keywords")
+        else:
+            print(f"   ⚠️  Search queries may lack topic relevance")
+    
+    # Assert that tools were actually used for this search task
+    assert result['tools_used'] > 0, f"Agent should use tools for search requests but used {result['tools_used']} tools"
     
     print("✅ TEST COMPLETED: Tool usage patterns analyzed successfully")
 
@@ -200,8 +188,8 @@ async def test_real_agent_goal_accuracy_with_reference(langchain_llm_ragas_wrapp
     print("🧪 TEST: Goal Achievement Accuracy (RAGAS)")
     print("="*60)
     
-    # Initialize agent for goal completion testing
-    agent = RealAgentRunner()
+    # Initialize agent for goal completion testing with custom test name
+    agent = RealAgentRunner("GoalAccuracyTest")
     
     # Define a clear, measurable goal for the agent
     task_request = "Please research the latest developments in test automation frameworks and provide a brief summary"
@@ -273,22 +261,8 @@ async def test_real_agent_goal_accuracy_with_reference(langchain_llm_ragas_wrapp
     else:
         print(f"   ⚠️  NEEDS IMPROVEMENT: Goal achievement below expectations")
     
-    # Qualitative assessment of response quality
-    print(f"\n🔍 QUALITATIVE ASSESSMENT:")
-    response_lower = result['response'].lower()
-    
-    # Check for key components of successful task completion
-    if any(term in response_lower for term in ['automation', 'testing', 'framework']):
-        print(f"   • ✅ Response addresses core topic")
-    
-    if any(term in response_lower for term in ['development', 'recent', 'advance', 'latest']):
-        print(f"   • ✅ Response includes recent developments")
-        
-    if result['tools_used'] > 0:
-        print(f"   • ✅ Agent used tools for research as expected")
-    
-    # Apply reasonable threshold for goal achievement
-    assert score >= 0.4, f"Goal accuracy score {score} indicates insufficient task completion"
+    # Apply RAGAS-based threshold for goal achievement
+    assert score >= 0.4, f"RAGAS AgentGoalAccuracyWithReference score {score:.3f} below acceptable threshold of 0.4"
     
     print("✅ TEST COMPLETED: Goal achievement accuracy successfully evaluated")
 
@@ -306,8 +280,8 @@ if __name__ == "__main__":
         """Run a simple test interaction with the agent"""
         print("🚀 Running quick manual test...")
         
-        # Create agent instance
-        agent = RealAgentRunner()
+        # Create agent instance with custom test name
+        agent = RealAgentRunner("ManualQuickTest")
         
         # Test basic interaction
         result = agent.ask_agent("Hello, could you please introduce your capabilities?")

@@ -36,11 +36,22 @@ class RealAgentRunner:
     
     This class creates and manages a real instance of the agent defined in
     3_basic_chat_bot_with_tools_memory.py for testing purposes.
+    
+    Each test can provide a custom name for LangSmith tracking, making it easy
+    to identify individual test runs in the LangSmith dashboard.
     """
     
-    def __init__(self):
-        """Initialize the real agent with memory and tools"""
-        print("🔧 Inicializando agente real...")
+    def __init__(self, test_name: str = "RealAgentTest"):
+        """
+        Initialize the real agent with memory and tools
+        
+        Args:
+            test_name (str): Custom name for LangSmith tracking (default: "RealAgentTest")
+        """
+        print(f"🔧 Inicializando agente real para: {test_name}")
+        
+        # Store test name for LangSmith tracking
+        self.test_name = test_name
         
         # Initialize memory for conversation persistence
         self.memory = InMemorySaver()
@@ -62,9 +73,20 @@ class RealAgentRunner:
             Compiled LangGraph agent with tools and memory
         """
         
-        # Setup LangSmith tracking (optional, fails gracefully)
+        # Setup LangSmith tracking with custom test name (optional, fails gracefully)
         try:
+            # Temporarily set the project name for this test
+            original_project = os.environ.get("LANGCHAIN_PROJECT")
+            os.environ["LANGCHAIN_PROJECT"] = self.test_name
+            
             setup_langsmith()
+            
+            # Restore original project name if it existed
+            if original_project:
+                os.environ["LANGCHAIN_PROJECT"] = original_project
+            else:
+                os.environ.pop("LANGCHAIN_PROJECT", None)
+                
         except Exception as e:
             print(f"⚠️  LangSmith setup failed: {e}")
             pass
