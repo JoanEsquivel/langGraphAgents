@@ -4,6 +4,13 @@ Real Agent Evaluation Tests
 These tests execute the actual 3_basic_chat_bot_with_tools_memory.py agent
 and evaluate real responses using RAGAS metrics for comprehensive assessment.
 
+🚀 EVERYTHING IS REAL - NO SIMULATION:
+- Uses actual LangGraph agent from your src code
+- Makes real calls to Qwen 2.5:7b-instruct LLM
+- Uses real Tavily web search tool
+- Captures actual tool calls and responses
+- No mocked or simulated data - all results are genuine
+
 Test Coverage:
 - Basic agent functionality and tool usage (weather information)
 - Topic adherence evaluation (weather + automation testing topics)
@@ -201,15 +208,12 @@ async def test_real_agent_goal_accuracy_with_reference(langchain_llm_ragas_wrapp
     
     print(f"🔄 Agent executed task with {result['tools_used']} tool calls")
     
-    # Construct multi-turn conversation for RAGAS evaluation
-    # This simulates a complete task interaction cycle
+    # Use the agent's natural single-turn completion for evaluation
+    # This is the most realistic scenario - agent gets a task and completes it
     conversation = [
-        # Initial task request
         HumanMessage(content=task_request),
-        
-        # Agent's response with tool usage
         AIMessage(
-            content=result['response'], 
+            content=result['response'],
             tool_calls=[
                 ToolCall(name=tc['name'], args=tc['args']) 
                 for tc in result['tool_calls']
@@ -217,17 +221,12 @@ async def test_real_agent_goal_accuracy_with_reference(langchain_llm_ragas_wrapp
         )
     ]
     
-    # Add tool messages if tools were used (simulates tool execution results)
-    if result['tool_calls']:
-        # Simulate tool execution result
-        tool_result_message = ToolMessage(
-            content="Retrieved recent information about test automation framework developments including Playwright improvements, Cypress updates, and new Selenium features."
-        )
-        conversation.append(tool_result_message)
-        
-        # Agent's final summary response
-        follow_up_result = agent.ask_agent("Please provide the summary based on the research results")
-        conversation.append(AIMessage(content=follow_up_result['response']))
+    print(f"📝 Agent response length: {len(result['response'])} characters")
+    print(f"🔧 Tools executed: {[tc['name'] for tc in result['tool_calls']]}")
+    
+    # Display actual response summary for verification
+    response_preview = result['response'][:200] + "..." if len(result['response']) > 200 else result['response']
+    print(f"💬 Agent response preview: {response_preview}")
     
     # Define reference standard for goal achievement
     reference_goal = "Agent should research and provide a summary about test automation framework developments"
