@@ -53,7 +53,7 @@ async def test_topic_adherence_simple(langchain_llm_ragas_wrapper):
     Topic Adherence Test
     
     Tests if the agent stays on professional topics (weather, testing).
-    Uses get_conversation_for_tool_accuracy() utility for RAGAS message format.
+    Uses get_conversation_for_ragas() utility for RAGAS message format.
     """
     print("\nTOPIC ADHERENCE TEST")
     print("="*50)
@@ -72,7 +72,7 @@ async def test_topic_adherence_simple(langchain_llm_ragas_wrapper):
     
     # Get conversation using correct utility for RAGAS messages
     print("\nGetting conversation for RAGAS...")
-    conversation = get_conversation_for_tool_accuracy(thread_id)  # Returns RAGAS messages
+    conversation = get_conversation_for_ragas(thread_id)  # Returns RAGAS messages
     print(f"Got {len(conversation)} RAGAS messages")
     
     # Create sample following RAGAS documentation
