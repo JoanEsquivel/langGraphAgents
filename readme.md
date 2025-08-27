@@ -614,12 +614,26 @@ This project includes a comprehensive RAGAS-based evaluation framework for testi
 
 ```
 tests/
-├── test_topic_adherence.py          # Simple topic adherence test
-├── test_tool_call_accuracy.py       # Simple tool call accuracy test
-├── test_agent_goal_accuracy.py      # Simple agent goal accuracy test
+├── test_real_agent.py               # 🤖 REAL agent evaluation (recommended)
+├── test_topic_adherence.py          # 📚 Static RAGAS example 
+├── test_tool_call_accuracy.py       # 📚 Static RAGAS example
+├── test_agent_goal_accuracy.py      # 📚 Static RAGAS example  
 ├── conftest.py                      # Simple test configuration
 └── pytest.ini                      # Pytest configuration
 ```
+
+**🎯 Two Types of Tests:**
+
+1. **`test_real_agent.py` - Real Agent Tests** ⭐ **RECOMMENDED**
+   - Actually executes your `3_basic_chat_bot_with_tools_memory.py` script
+   - Tests the real agent behavior and responses
+   - Uses RAGAS to evaluate actual conversations
+   - Shows what your agent really does
+
+2. **Static RAGAS Examples** 
+   - Pre-written conversation examples following RAGAS patterns
+   - Good for understanding RAGAS format
+   - Always return perfect scores (1.000)
 
 ### 📝 Simple Test Examples
 
@@ -674,51 +688,64 @@ pip install -r requirements.txt
 ```
 
 #### Execute Complete Evaluation
+
+**🤖 Tests with REAL Agent (Recommended):**
 ```bash
-# Run all 3 simple tests
+# Run all tests that actually execute your 3_basic_chat_bot_with_tools_memory.py
+pytest tests/test_real_agent.py -v
+
+# Individual real agent tests with detailed logs
+pytest tests/test_real_agent.py::test_real_agent_weather_question -v -s
+pytest tests/test_real_agent.py::test_real_agent_topic_adherence_simple -v -s  
+pytest tests/test_real_agent.py::test_real_agent_tool_accuracy_simple -v -s
+```
+
+**📚 Static RAGAS Examples (For reference):**
+```bash
+# Run the static conversation examples
 pytest tests/test_topic_adherence.py tests/test_tool_call_accuracy.py tests/test_agent_goal_accuracy.py -v
-
-# Run individual tests
-pytest tests/test_topic_adherence.py::test_topic_adherence_weather_to_offtopic -v
-pytest tests/test_tool_call_accuracy.py::test_tool_call_accuracy_weather_search -v  
-pytest tests/test_agent_goal_accuracy.py::test_agent_goal_accuracy_research_task -v
-
-# Run with detailed output to see scores
-pytest tests/ -v -s
 ```
 
 #### Sample Test Output
-```bash
-$ pytest tests/test_topic_adherence.py::test_topic_adherence_weather_to_offtopic -v -s
 
-================================== test session starts ===================================
-tests/test_topic_adherence.py::test_topic_adherence_weather_to_offtopic 
+**🤖 Real Agent Evaluation (test_real_agent.py):**
+```bash
+$ pytest tests/test_real_agent.py::test_real_agent_topic_adherence_simple -v -s
+
+============================================================
+🧪 TEST: Adherencia al tema (RAGAS)
+============================================================
+🔧 Inicializando agente real...
+✅ Agente real listo
+❓ Usuario: ¿Cuál es el clima en Barcelona?
+🤖 Agente: Según la información más reciente encontrada: Se espera lluvia débil...
+🔧 Herramientas usadas: ['tavily_search']
+❓ Usuario: ¿Qué opinas de mis problemas de pareja?
+🤖 Agente: Entiendo que estás pasando por un momento difícil...
+
+📝 Creando conversación para RAGAS...
+🎯 Evaluando con RAGAS TopicAdherenceScore...
+
+📊 RESULTADOS RAGAS:
+   🎯 Score: 0.500
+   📏 Threshold: 0.4 (flexible)
+   ✅ PASS: Adherencia aceptable
+
+🔍 ANÁLISIS:
+   • Agente mencionó el tema personal
+   • Agente ofreció redirección apropiada
+✅ TEST COMPLETADO: Adherencia evaluada
+
+PASSED
+```
+
+**📚 Static Example Output:**
+```bash
+$ pytest tests/test_topic_adherence.py -v -s
 
 🎯 Topic Adherence Score: 1.000
-✅ Expected: Agent should stay focused on weather/information topics
-✅ Expected: Agent should redirect personal/off-topic questions appropriately
+✅ Expected: Agent should stay focused on weather/information topics  
 ✅ PASSED: Topic adherence score 1.000 meets threshold
-
-PASSED
-
-$ pytest tests/test_tool_call_accuracy.py::test_tool_call_accuracy_weather_search -v -s
-
-🔧 Tool Call Accuracy Score: 1.000
-✅ Expected: Agent should use tavily_search_results_json for weather queries
-✅ Expected: Agent should provide appropriate search parameters
-✅ PASSED: Tool call accuracy score 1.000 meets threshold
-
-PASSED
-
-$ pytest tests/test_agent_goal_accuracy.py::test_agent_goal_accuracy_research_task -v -s
-
-🎯 Agent Goal Accuracy Score: 1.000
-✅ Expected: Agent should provide comprehensive EV information
-✅ Expected: Agent should address both benefits and market data
-✅ Expected: Information should be suitable for school project
-✅ PASSED: Agent goal accuracy score 1.000 meets threshold
-
-PASSED
 ```
 
 ### 📈 Performance Interpretation Guide
