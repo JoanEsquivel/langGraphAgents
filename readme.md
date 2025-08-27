@@ -6,6 +6,190 @@ A comprehensive technical implementation showcasing LangGraph agent development 
 
 ---
 
+## 🛠️ Setup & Installation
+
+### 📋 Prerequisites
+
+- **Python**: 3.9 or higher
+- **Ollama**: Local LLM serving platform
+- **API Keys**: Tavily (web search) and LangSmith (optional monitoring)
+
+### 1️⃣ Environment Setup
+
+```bash
+# Clone the repository
+git clone <your-repo-url>
+cd langGraphAgents
+
+# Create and activate virtual environment
+python -m venv venv_foundational_agents
+source venv_foundational_agents/bin/activate  # On Windows: venv_foundational_agents\Scripts\activate
+
+# Install Python dependencies
+pip install -r requirements.txt
+```
+
+### 2️⃣ Install Dependencies
+
+**Core Requirements:**
+```txt
+langgraph==0.6.5          # Agent framework
+langsmith==0.4.14         # Monitoring and tracing
+langchain-ollama           # Ollama LLM integration
+python-dotenv==1.0.1       # Environment variables
+langchain-tavily           # Web search integration
+ragas                      # Evaluation framework
+pytest                     # Testing framework
+pytest-asyncio             # Async test support
+requests                   # HTTP client
+```
+
+### 3️⃣ Ollama Installation & Setup
+
+**Install Ollama:**
+```bash
+# macOS
+brew install ollama
+
+# Linux
+curl -fsSL https://ollama.ai/install.sh | sh
+
+# Windows - Download from https://ollama.ai/download
+```
+
+**Download Required Model:**
+```bash
+# Pull the model used by the agent
+ollama pull qwen2.5:7b-instruct
+
+# Verify installation
+ollama list
+```
+
+**Start Ollama Server:**
+```bash
+# Start Ollama (runs on http://localhost:11434)
+ollama serve
+```
+
+### 4️⃣ Environment Configuration
+
+**Create `.env` file:**
+```bash
+# Copy the example environment file
+cp env.example .env
+```
+
+**Configure API Keys in `.env`:**
+```env
+# ============================================================================
+# LangSmith Configuration (Optional - for tracing and monitoring)
+# ============================================================================
+LANGSMITH_TRACING=true
+LANGSMITH_API_KEY=your_langsmith_api_key_here
+LANGSMITH_PROJECT=langgraphagents
+
+# ============================================================================
+# Tavily Search API Configuration (Required - for web search)
+# ============================================================================
+TAVILY_API_KEY=your_tavily_api_key_here
+```
+
+**Get API Keys:**
+- **Tavily API**: Register at [tavily.com](https://tavily.com/) → Dashboard → API Keys
+- **LangSmith API** (optional): Register at [smith.langchain.com](https://smith.langchain.com/) → Settings → API Keys
+
+### 5️⃣ Verify Installation
+
+**Test Basic Setup:**
+```bash
+# Test Ollama connection
+python -c "
+import requests
+response = requests.get('http://localhost:11434/api/version')
+print(f'Ollama Status: {response.status_code}')
+print(f'Version: {response.json()}')
+"
+```
+
+**Test Environment Loading:**
+```bash
+# Test environment variables
+python -c "
+from dotenv import load_dotenv
+import os
+load_dotenv()
+print('Tavily API:', 'Configured' if os.getenv('TAVILY_API_KEY') else 'Missing')
+print('LangSmith:', 'Configured' if os.getenv('LANGSMITH_API_KEY') else 'Not configured (optional)')
+"
+```
+
+**Run Agent Test:**
+```bash
+# Test the agent
+python src/4-final-agent-formated-response.py
+```
+
+### 6️⃣ Run Tests
+
+```bash
+# Run all evaluation tests
+python -m pytest tests/test_real_agent_simple.py -v
+
+# Run specific test
+python -m pytest tests/test_real_agent_simple.py::test_topic_adherence_simple -v
+
+# Run with detailed output
+python -m pytest tests/test_real_agent_simple.py -v --tb=short
+```
+
+### 🔧 Troubleshooting
+
+**Common Issues:**
+
+1. **Ollama Connection Error:**
+   ```bash
+   # Ensure Ollama is running
+   ollama serve
+   
+   # Check if model is available
+   ollama list | grep qwen2.5
+   ```
+
+2. **Import Errors:**
+   ```bash
+   # Ensure virtual environment is activated
+   source venv_foundational_agents/bin/activate
+   
+   # Reinstall dependencies
+   pip install -r requirements.txt
+   ```
+
+3. **API Key Issues:**
+   ```bash
+   # Verify .env file exists and has correct format
+   cat .env | grep -E "TAVILY_API_KEY|LANGSMITH_API_KEY"
+   ```
+
+4. **Test Failures:**
+   ```bash
+   # Run individual test with full traceback
+   python -m pytest tests/test_real_agent_simple.py::test_topic_adherence_simple -v -s --tb=long
+   ```
+
+### ✅ Setup Verification Checklist
+
+- [ ] Python 3.9+ installed
+- [ ] Virtual environment activated
+- [ ] All dependencies installed (`pip list | grep langraph`)
+- [ ] Ollama running (`curl http://localhost:11434/api/version`)
+- [ ] Qwen 2.5 model downloaded (`ollama list`)
+- [ ] `.env` file configured with API keys
+- [ ] Tavily API key valid (try a test search)
+- [ ] Tests passing (`pytest tests/test_real_agent_simple.py`)
+
+---
+
 ## 🏗️ System Architecture
 
 ### 📊 Component Architecture
@@ -314,9 +498,61 @@ def get_conversation_for_ragas(thread_id: str) -> List[LangChainMessage]:
     return snapshot.values.get("messages", [])
 ```
 
-**Actual Conversation Format**:
+**Real Conversation Output - Topic Adherence**:
 ```python
-# Real conversation captured from agent (8 messages total)
+# EXACT OUTPUT from get_conversation_for_tool_accuracy() 
+# Multi-topic conversation: Weather + API Design + Authentication
+# Total messages: 12
+
+Function: get_conversation_for_tool_accuracy(thread_id)
+Returns: List[RagasMessage]
+
+[0] HumanMessage:
+    content: 'What is the current weather in Tokyo?'
+
+[1] AIMessage:
+    content: 'To provide you with the current weather in Tokyo, I will use the `tavily_search` tool...'
+    tool_calls: [1 calls]
+      [0] name: tavily_search
+          args: {'query': 'current weather in Tokyo'}
+
+[2] ToolMessage:
+    content: '{"query": "current weather in Tokyo", "results": [{"title": "Weather in Tokyo", "content": "temp_c: 35.1, condition: Partly cloudy, wind_mph: 15.4..."}]}'
+
+[3] AIMessage:
+    content: 'The current weather in Tokyo is as follows:\n\n- Temperature: 35.1°C (95.2°F)\n- Condition: Partly cloudy\n- Wind Speed: 15.4 mph...'
+
+[4] HumanMessage:
+    content: 'What are the best practices for REST API design?'
+
+[5] AIMessage:
+    content: ''
+    tool_calls: [1 calls]
+      [0] name: tavily_search
+          args: {'query': 'best practices for REST API design', 'search_depth': 'advanced'}
+
+[6] ToolMessage:
+    content: '{"query": "best practices for REST API design", "results": [{"title": "RESTful API Design Best Practices", "content": "1. Name endpoints right 2. Use the right HTTP method..."}]}'
+
+[7] AIMessage:
+    content: 'Here are some best practices for designing RESTful APIs:\n\n### Key Best Practices\n\n1. **Name Endpoints Right**: Use clear, consistent names...'
+
+[8] HumanMessage:
+    content: 'How do I implement authentication in microservices?'
+
+[9] AIMessage:
+    content: ''
+    tool_calls: [1 calls]
+      [0] name: tavily_search
+          args: {'query': 'implementing authentication in microservices', 'search_depth': 'advanced'}
+
+[10] ToolMessage:
+    content: '{"query": "implementing authentication in microservices", "results": [{"title": "Authentication in Microservices", "content": "API gateway as central point, SSO implementation..."}]}'
+
+[11] AIMessage:
+    content: 'Implementing authentication in a microservices architecture involves several key considerations:\n\n### Key Approaches\n\n1. **API Gateway as Central Authentication Point**...'
+
+# Complete conversation: 12 messages covering 3 topics (weather, API design, microservices)
 conversation_messages = [
     # User asks about weather
     HumanMessage(content="What is the weather in Madrid?"),
@@ -420,44 +656,47 @@ def get_conversation_for_tool_accuracy(thread_id: str) -> List[RagasMessage]:
     return ragas_messages
 ```
 
-**Real Tool Call Analysis**:
+**Real Tool Call Analysis - Complete Conversation**:
 ```python
-# Real example from captured conversation
-user_query = "What are the best practices for API testing?"
+# EXACT OUTPUT from get_conversation_for_tool_accuracy()
+# Focus: Messages WITH tool calls only
+# Total tool messages: 3 (from 12 message conversation)
 
-# Agent's actual tool calls (captured from real execution)
-actual_tool_calls = [
-    ToolCall(
-        name="tavily_search",
-        args={
-            "query": "best practices for api testing"
-        }
-    )
-]
+Function: get_conversation_for_tool_accuracy(thread_id)
+Returns: List[RagasMessage] with ToolCall objects
 
-# Expected tool calls (reference standard)
-reference_tool_calls = [
-    ToolCall(
-        name="tavily_search",
-        args={
-            "query": "best practices for api testing"
-        }
-    )
-]
+# === TOOL CALL MESSAGE 1: Weather Query ===
+Tool Message [0] - AIMessage:
+    content: 'To provide you with the current weather in Tokyo, I will use the `tavily_search` tool...'
+    tool_calls: [1 calls]
+      [0] ToolCall:
+          name: tavily_search
+          args: {'query': 'current weather in Tokyo'}
+          type: ToolCall  # ragas.messages.ToolCall
 
-# Complete conversation with tool usage (real data)
-tool_accuracy_conversation = [
-    HumanMessage(content="What are the best practices for API testing?"),
-    
-    AIMessage(
-        content="",
-        tool_calls=actual_tool_calls
-    ),
-    
-    ToolMessage(content='{"query": "best practices for api testing", "follow_up_questions": null, "answer": null, "results": [{"url": "https://www.pynt.io/learning-hub/api-testing-guide/top-10-api-testing-best-practices", "title": "Top 10 API Testing Best Practices", "content": "API Testing # Top 10 API Testing Best Practices... realistic data testing...negative testing...security testing..."}]}'),
-    
-    AIMessage(content="Here are some best practices for API testing based on the information retrieved:\n\n### Top 10 API Testing Best Practices\n\n1. **Understand the Purpose and Data Handling of the API**: Clearly define what the API is supposed to do and how it handles data.\n2. **Test with Realistic Data**: Use realistic data to test the API's ability to handle various types of input securely and accurately.\n3. **Negative Testing**: Ensure that the API can handle improper use cases correctly...")
-]
+# === TOOL CALL MESSAGE 2: API Design Query ===
+Tool Message [1] - AIMessage:
+    content: ''
+    tool_calls: [1 calls]
+      [0] ToolCall:
+          name: tavily_search
+          args: {'query': 'best practices for REST API design', 'search_depth': 'advanced'}
+          type: ToolCall  # ragas.messages.ToolCall
+
+# === TOOL CALL MESSAGE 3: Authentication Query ===
+Tool Message [2] - AIMessage:
+    content: ''
+    tool_calls: [1 calls]
+      [0] ToolCall:
+          name: tavily_search
+          args: {'query': 'implementing authentication in microservices', 'search_depth': 'advanced'}
+          type: ToolCall  # ragas.messages.ToolCall
+
+# Tool Call Accuracy Analysis:
+# - All 3 tool calls use 'tavily_search' (consistent tool selection)
+# - Query arguments are contextually appropriate
+# - Search depth parameter used when needed
+# - Perfect 1:1 mapping between user questions and tool usage
 ```
 
 **RAGAS Tool Evaluation**:
@@ -500,13 +739,32 @@ def get_conversation_for_goal_accuracy(thread_id: str) -> MultiTurnSample:
     return MultiTurnSample(user_input=ragas_messages)
 ```
 
-**Complete Goal Achievement Example**:
+**Complete Goal Achievement - Real MultiTurnSample Output**:
 ```python
-# Real task assignment from captured conversation
-task_description = "What are the best practices for API testing?"
+# EXACT OUTPUT from get_conversation_for_goal_accuracy()
+# Multi-objective task completion evaluation
+# Total conversation: 12 messages across 3 topics
 
-# Reference goal for evaluation (based on what agent actually achieved)
-reference_goal = "Agent should research and provide comprehensive best practices for API testing with detailed explanations"
+Function: get_conversation_for_goal_accuracy(thread_id)
+Returns: MultiTurnSample
+Module: ragas.dataset_schema
+
+MultiTurnSample structure:
+  user_input: list (length: 12)
+  reference: None  # Set during evaluation
+  reference_topics: None
+  reference_tool_calls: None
+
+# Sample messages in MultiTurnSample.user_input:
+# [0] Weather query → [1-3] Weather research and response
+# [4] API design query → [5-7] API research and comprehensive practices
+# [8] Authentication query → [9-11] Auth research and implementation guide
+
+# Goal Achievement Analysis:
+# - 3 distinct user tasks, all completed successfully
+# - Each task: research → tool usage → comprehensive response
+# - Topics: Weather, API design, microservices authentication
+# - Quality: Structured, detailed, actionable content
 
 # Actual conversation flow (real captured data)
 goal_achievement_conversation = [
