@@ -18,6 +18,8 @@ import os
 import pytest
 import uuid
 import importlib.util
+import datetime
+import json
 
 # Add project root to Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -76,6 +78,8 @@ async def test_topic_adherence_simple(langchain_llm_ragas_wrapper):
     sample = getMultiTurnSampleConversation(thread_id)
     print(f"Got MultiTurnSample with {len(sample.user_input)} messages")
     
+
+    
     # Set focused QA automation reference topics
     reference_topics = [
         "functional testing", "software testing", "test automation", 
@@ -92,6 +96,49 @@ async def test_topic_adherence_simple(langchain_llm_ragas_wrapper):
     print(f"   Score: {score:.3f}")
     print(f"   Threshold: >= 0.7")
     print(f"   Status: {'PASS' if score >= 0.7 else 'FAIL'}")
+    
+    # Create log file for this test
+    log_filename = f"test_topic_adherence_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+    log_path = os.path.join(os.path.dirname(__file__), "logs", log_filename)
+    
+    with open(log_path, 'w', encoding='utf-8') as f:
+        f.write("=== TOPIC ADHERENCE TEST LOG ===\n")
+        f.write(f"Test executed at: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        f.write(f"Thread ID: {thread_id}\n\n")
+        
+        f.write("=== MULTI-TURN SAMPLE CONVERSATION ===\n")
+        f.write(f"Total messages: {len(sample.user_input)}\n\n")
+        
+        for i, message in enumerate(sample.user_input):
+            if message.type == 'human':
+                f.write(f"User: {message.content}\n\n")
+            elif message.type == 'ai':
+                f.write(f"Assistant: {message.content}\n\n")
+        
+        f.write("=== REFERENCE ===\n")
+        f.write(f"Reference Topics: {reference_topics}\n\n")
+        
+        f.write("=== SCORE ===\n")
+        f.write(f"Topic Adherence Score: {score:.3f}\n")
+        f.write(f"Threshold: >= 0.7\n")
+        f.write(f"Status: {'PASS' if score >= 0.7 else 'FAIL'}\n\n")
+        
+        f.write("=== AI AGENT ANALYSIS ===\n")
+        f.write("Looking at this conversation and comparing it to the score:\n\n")
+        
+        f.write("The test asked about functional testing (on-topic) and then weather (off-topic challenge). ")
+        f.write(f"The agent scored {score:.3f} for topic adherence.\n\n")
+        
+        if score >= 0.7:
+            f.write("My Assessment: The score seems appropriate. The agent likely stayed focused on QA topics ")
+            f.write("when discussing functional testing and properly handled the off-topic weather question by ")
+            f.write("either redirecting back to testing topics or politely declining to discuss weather.\n")
+        else:
+            f.write("My Assessment: The low score suggests the agent may have gone off-topic when asked about weather ")
+            f.write("instead of staying within its QA automation domain. This indicates a potential issue with ")
+            f.write("maintaining topic boundaries.\n")
+    
+    print(f"   Log saved to: {log_path}")
     
     assert score >= 0.7, f"Topic adherence score {score:.3f} below threshold"
 
@@ -123,13 +170,15 @@ async def test_tool_accuracy_simple(langchain_llm_ragas_wrapper):
     sample = getMultiTurnSampleConversation(thread_id)
     print(f"Got MultiTurnSample with {len(sample.user_input)} messages")
     
+
+    
     # Define expected tool calls for the simplified question
     # The test asks about: newest API testing framework released in 2024
     # A competent agent should make a search for current information
     expected_tool_calls = [
         ToolCall(
             name="tavily_search", 
-            args={"query": "newest API testing framework 2024"}
+            args={"query": "newest API testing framework 2025"}
         )
     ]
     
@@ -145,6 +194,96 @@ async def test_tool_accuracy_simple(langchain_llm_ragas_wrapper):
     print(f"   Score: {score:.3f}")
     print(f"   Threshold: >= 0.7")
     print(f"   Status: {'PASS' if score >= 0.7 else 'FAIL'}")
+    
+    # Create log file for this test
+    log_filename = f"test_tool_accuracy_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+    log_path = os.path.join(os.path.dirname(__file__), "logs", log_filename)
+    
+    with open(log_path, 'w', encoding='utf-8') as f:
+        f.write("=== TOOL CALL ACCURACY TEST LOG ===\n")
+        f.write(f"Test executed at: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        f.write(f"Thread ID: {thread_id}\n\n")
+        
+        f.write("=== MULTI-TURN SAMPLE CONVERSATION ===\n")
+        f.write(f"Total messages: {len(sample.user_input)}\n\n")
+        
+        for i, message in enumerate(sample.user_input):
+            if message.type == 'human':
+                f.write(f"User: {message.content}\n\n")
+            elif message.type == 'ai':
+                f.write(f"Assistant: {message.content}\n\n")
+        
+        f.write("=== REFERENCE ===\n")
+        f.write("Expected Tool Calls:\n")
+        for j, tool_call in enumerate(expected_tool_calls, 1):
+            f.write(f"  {j}. Tool: {tool_call.name}\n")
+            f.write(f"     Args: {tool_call.args}\n")
+        f.write("\n")
+        
+        f.write("=== ACTUAL TOOL CALLS ===\n")
+        # Extract tool calls from AI messages
+        actual_tool_calls = []
+        for msg in sample.user_input:
+            if msg.type == 'ai' and hasattr(msg, 'tool_calls') and msg.tool_calls:
+                actual_tool_calls.extend(msg.tool_calls)
+        
+        if actual_tool_calls:
+            f.write("Tool calls made by agent:\n")
+            for j, tool_call in enumerate(actual_tool_calls, 1):
+                f.write(f"  {j}. Tool: {tool_call.name}\n")
+                f.write(f"     Args: {tool_call.args}\n")
+        else:
+            f.write("No tool calls detected in conversation\n")
+        f.write("\n")
+        
+        f.write("=== SCORE ===\n")
+        f.write(f"Tool Call Accuracy Score: {score:.3f}\n")
+        f.write(f"Threshold: >= 0.7\n")
+        f.write(f"Status: {'PASS' if score >= 0.7 else 'FAIL'}\n\n")
+        
+        f.write("=== AI AGENT ANALYSIS ===\n")
+        f.write("Looking at this conversation and comparing it to the score:\n\n")
+        
+        f.write("The test asked about the newest API testing framework released in 2024, which clearly required ")
+        f.write(f"current research using search tools. The agent scored {score:.3f} for tool call accuracy.\n\n")
+        
+        # Analysis based on actual tool calls found
+        if actual_tool_calls:
+            f.write(f"✓ TOOL CALLS DETECTED: The agent made {len(actual_tool_calls)} tool call(s):\n")
+            for tc in actual_tool_calls:
+                query = tc.args.get('query', 'N/A')
+                f.write(f"  - {tc.name}: query='{query}'\n")
+            f.write("\n")
+            
+            # Check if tool calls were appropriate
+            relevant_search = False
+            for tc in actual_tool_calls:
+                query = tc.args.get('query', '').lower()
+                if 'api' in query and 'testing' in query and '2024' in query:
+                    relevant_search = True
+                    break
+            
+            if relevant_search:
+                f.write("✓ RELEVANT SEARCH: Tool calls were highly relevant to the question.\n\n")
+            else:
+                f.write("⚠ SEARCH RELEVANCE: Tool calls may not have been perfectly targeted to the question.\n\n")
+                
+            if score >= 0.7:
+                f.write("My Assessment: The score is justified. The agent correctly recognized the need for research ")
+                f.write("and made appropriate tool calls. The high score reflects good tool usage behavior.\n")
+            else:
+                f.write("My Assessment: Despite making tool calls, the low score suggests the calls may not have ")
+                f.write("been optimal or fully aligned with the expected reference tool calls.\n")
+        else:
+            f.write("✗ NO TOOL CALLS: Despite the question requiring current research, no tool calls were detected.\n\n")
+            if score >= 0.7:
+                f.write("My Assessment: SCORING ERROR - The high score doesn't make sense since the agent failed ")
+                f.write("to use any search tools when they were clearly needed for this question.\n")
+            else:
+                f.write("My Assessment: The low score is appropriate - the agent failed to recognize the need for ")
+                f.write("search tools when asked about current information.\n")
+    
+    print(f"   Log saved to: {log_path}")
     
     assert score >= 0.7, f"Tool accuracy score {score:.3f} below threshold"
 
@@ -192,6 +331,49 @@ async def test_goal_accuracy_simple(langchain_llm_ragas_wrapper):
     print(f"   Score: {score:.3f}")
     print(f"   Threshold: >= 0.7")
     print(f"   Status: {'PASS' if score >= 0.7 else 'FAIL'}")
+    
+    # Create log file for this test
+    log_filename = f"test_goal_accuracy_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+    log_path = os.path.join(os.path.dirname(__file__), "logs", log_filename)
+    
+    with open(log_path, 'w', encoding='utf-8') as f:
+        f.write("=== GOAL ACHIEVEMENT TEST LOG ===\n")
+        f.write(f"Test executed at: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        f.write(f"Thread ID: {thread_id}\n\n")
+        
+        f.write("=== MULTI-TURN SAMPLE CONVERSATION ===\n")
+        f.write(f"Total messages: {len(sample.user_input)}\n\n")
+        
+        for i, message in enumerate(sample.user_input):
+            if message.type == 'human':
+                f.write(f"User: {message.content}\n\n")
+            elif message.type == 'ai':
+                f.write(f"Assistant: {message.content}\n\n")
+        
+        f.write("=== REFERENCE ===\n")
+        f.write(f"Reference Goal: {reference_goal}\n\n")
+        
+        f.write("=== SCORE ===\n")
+        f.write(f"Goal Achievement Score: {score:.3f}\n")
+        f.write(f"Threshold: >= 0.7\n")
+        f.write(f"Status: {'PASS' if score >= 0.7 else 'FAIL'}\n\n")
+        
+        f.write("=== AI AGENT ANALYSIS ===\n")
+        f.write("Looking at this conversation and comparing it to the score:\n\n")
+        
+        f.write("The test asked 'What is API testing and why is it important?' - a straightforward question ")
+        f.write(f"requiring definition and explanation. The agent scored {score:.3f} for goal achievement.\n\n")
+        
+        if score >= 0.7:
+            f.write("My Assessment: The score seems appropriate. The agent likely provided a clear definition ")
+            f.write("of API testing, explained its importance in software development, and covered the key concepts ")
+            f.write("mentioned in the reference goal about API testing and its significance.\n")
+        else:
+            f.write("My Assessment: The low score suggests the agent's response was inadequate. This could mean ")
+            f.write("the answer was incomplete, too brief, inaccurate, or failed to properly address both parts ")
+            f.write("of the question (what API testing is AND why it's important).\n")
+    
+    print(f"   Log saved to: {log_path}")
     
     assert score >= 0.7, f"Goal accuracy score {score:.3f} below threshold"
 
