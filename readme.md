@@ -298,40 +298,89 @@ async def test_tool_accuracy_simple():
 
 ## 🔍 Understanding RAGAS Metrics
 
-### Metric Definitions
+### Metric Definitions & Expected Scoring Behavior
 
 #### 🎯 Topic Adherence Score
-- **Purpose**: Measures how well the agent stays focused on QA automation topics
-- **Method**: Compares responses against reference topics using LLM evaluation  
-- **Range**: 0.0 (completely off-topic) to 1.0 (perfectly focused)
+- **Purpose**: Measures how well the agent stays focused on reference topics
+- **Method**: Multi-step LLM evaluation with precision/recall calculations
+- **Architecture**: 
+  1. Extracts topics from conversation using LLM
+  2. Classifies if agent "answered" or "refused" each topic 
+  3. Matches extracted topics against reference topics
+  4. Calculates precision, recall, or F1 based on mode setting
+- **Range**: 0.0 to 1.0 (supports **nuanced scoring**)
+- **Expected Scores**:
+  - **0.6-0.8**: Mixed topic handling (some on-topic, some boundaries crossed)
+  - **0.8-0.9**: Good topic adherence with minor boundary issues
+  - **0.9-1.0**: Excellent topic focus and boundary management
+- **Configuration**: `mode="precision"` vs `mode="recall"` affects scoring sensitivity
 
-#### 🛠️ Tool Call Accuracy
-- **Purpose**: Evaluates appropriate use of web search tools
-- **Method**: Compares actual vs expected tool usage patterns
-- **Range**: 0.0 (poor tool usage) to 1.0 (optimal tool selection)
+#### 🛠️ Tool Call Accuracy  
+- **Purpose**: Evaluates exact matching of tool calls against expected references
+- **Method**: **Exact string matching** with sequence alignment
+- **Architecture**:
+  1. Compares tool names (must match exactly)
+  2. Uses `ExactMatch()` metric for tool arguments (no fuzzy matching)
+  3. Multiplies by sequence alignment score (binary: 0 or 1)
+- **Range**: 0.0 to 1.0 (**binary behavior** in practice)
+- **Expected Scores**:
+  - **0.000**: Tool calls don't exactly match reference (common)
+  - **1.000**: Perfect exact match of tool names and arguments
+- **⚠️ Limitation**: No semantic understanding - "2024" ≠ "2025" = complete failure
 
 #### 🏆 Goal Achievement
-- **Purpose**: Assesses task completion quality against reference standards
-- **Method**: LLM evaluation of response completeness and usefulness
-- **Range**: 0.0 (goal not met) to 1.0 (perfect goal achievement)
+- **Purpose**: Binary comparison of goal completion against reference
+- **Method**: **Forced binary LLM evaluation** 
+- **Architecture**:
+  1. LLM infers goal and end state from conversation
+  2. LLM compares desired outcome vs achieved outcome  
+  3. Returns only "0" (different) or "1" (same) - no middle ground
+- **Range**: **0.000 or 1.000 only** (explicitly binary)
+- **Expected Scores**:
+  - **0.000**: Goal not met OR missing any reference requirement (e.g., pets)
+  - **1.000**: Goal perfectly achieved as specified in reference
+- **⚠️ Design**: `output_type = MetricOutputType.BINARY` enforces 0/1 only
 
 ### 📊 Real Test Performance Data
 
-**Sample conversation thread: `goal_test_c8af1eb3`**
+**Recent test results demonstrate the actual scoring behavior:**
 
+#### Test 1: Topic Adherence (Mixed Reference Topics)
 ```
-User: "Research latest test automation frameworks and provide a summary"
+User: "What is functional testing?" → "What's the weather today?"
 
 Agent Actions:
-1. Recognizes need for current information → triggers web search
-2. Calls tavily_search with query: "latest test automation frameworks"  
-3. Processes real web results from TestGuild, Testomat.io, and other sources
-4. Delivers structured summary of 7+ frameworks with descriptions
+1. Provides comprehensive functional testing explanation ✅
+2. Redirects weather question back to QA domain ✅
 
-RAGAS Scores:
-✅ Topic Adherence:  1.000/1.0 (stayed within QA domain)
-✅ Tool Accuracy:    1.000/1.0 (used search appropriately)  
-✅ Goal Achievement: 1.000/1.0 (comprehensive framework summary)
+Reference Topics: ['functional testing', 'software testing', 'test automation', 
+                  'quality assurance', 'testing strategies', 'testing practices', 
+                  'lifestyle', 'weather', 'cooking', 'general knowledge']
+
+RAGAS Score: 0.600/1.0 (precision mode)
+- Shows nuanced scoring based on mixed topic handling
+```
+
+#### Test 2: Tool Call Accuracy (Exact Match Required)  
+```
+User: "Find current information about newest API testing framework released in 2024"
+
+Agent: tavily_search(query="newest API testing framework 2024", search_depth="advanced")
+Expected: tavily_search(query="newest API testing framework 2025")
+
+RAGAS Score: 0.000/1.0 
+- Binary failure due to "2024" ≠ "2025" exact match requirement
+```
+
+#### Test 3: Goal Achievement (Binary Evaluation)
+```
+User: "What is API testing and why is it important?"
+
+Agent: Comprehensive explanation with types, best practices, tools, examples
+Reference: "Explained what API testing is, described its importance..."
+
+RAGAS Score: 1.000/1.0
+- Binary success when all reference requirements met exactly
 ```
 
 ### 🎮 Running Your Own Evaluations
@@ -355,6 +404,54 @@ sample.reference_topics = ["your", "topics", "here"]  # Topic adherence
 scorer = YourChosenMetric(llm=evaluator_llm)
 score = await scorer.multi_turn_ascore(sample)
 ```
+
+### ⚙️ Scoring Configuration & Tuning
+
+#### Topic Adherence Modes
+```python
+# More lenient scoring (higher scores)
+scorer = TopicAdherenceScore(llm=llm, mode="recall")
+
+# Stricter scoring (lower scores)  
+scorer = TopicAdherenceScore(llm=llm, mode="precision")
+
+# Balanced scoring
+scorer = TopicAdherenceScore(llm=llm, mode="f1")  # Default
+```
+
+#### Tool Call Accuracy Tuning
+```python
+# Current implementation uses exact matching:
+# "2024" ≠ "2025" → Score: 0.000
+
+# For better results, ensure reference tool calls match expected agent behavior:
+expected_tool_calls = [
+    ToolCall(name="tavily_search", args={"query": "newest API testing framework 2024"})
+    # ↑ Use agent's actual year, not a different one
+]
+```
+
+#### Goal Achievement Reference Design
+```python
+# ✅ Good: Achievable, clear requirements
+reference_goal = "Explained API testing definition and importance"
+
+# ❌ Bad: Impossible or mixed requirements  
+reference_goal = "Explained API testing and mentioned pets"  # → Always 0.000
+```
+
+### 🎯 Expected Score Ranges in Practice
+
+| Metric | Low (0.0-0.3) | Moderate (0.4-0.6) | Good (0.7-0.8) | Excellent (0.9-1.0) |
+|--------|---------------|---------------------|-----------------|---------------------|
+| **Topic Adherence** | Major off-topic drift | Mixed boundaries | Good focus + minor drift | Perfect domain adherence |
+| **Tool Accuracy** | Wrong tools/args | N/A (binary) | N/A (binary) | Exact match only |  
+| **Goal Achievement** | Missing requirements | N/A (binary) | N/A (binary) | Perfect match only |
+
+**🔧 Practical Tips:**
+- **Topic Adherence**: Use mixed reference topics to test boundary handling (like lifestyle + QA topics)
+- **Tool Accuracy**: Design reference calls to match agent's actual logic, not ideal behavior
+- **Goal Achievement**: Keep references achievable - avoid impossible requirements
 
 ---
 
