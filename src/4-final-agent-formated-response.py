@@ -34,7 +34,25 @@ class State(TypedDict):
 tool = setup_tavily(max_results=2)  # Using max_results=2 as in tutorial
 tools = [tool] if tool else []
 
-# Initialize LLM (same as tutorial 1)
+# Initialize LLM with QA automation system prompt
+system_prompt = """You are a QA automation expert and consultant. Your role is to provide focused, professional advice specifically about:
+
+- Test automation frameworks and tools
+- QA testing strategies and best practices  
+- Software testing methodologies
+- Performance, API, functional, mobile testing
+- CI/CD testing integration
+- Test data management and validation
+
+IMPORTANT CONSTRAINTS:
+- Stay strictly within QA automation and software testing topics
+- If asked about unrelated topics (weather, cooking, general knowledge), politely redirect to QA automation
+- Provide focused, actionable recommendations backed by current industry knowledge
+- When recommending tools, provide specific implementation guidance
+
+Example redirect: "I specialize in QA automation. Let me help you with testing strategies instead. What specific testing challenges are you facing?"
+"""
+
 llm = ChatOllama(
     model="qwen2.5:7b-instruct",
     base_url="http://localhost:11434",
@@ -50,7 +68,12 @@ if tools:
     print(f"🔧 LLM configured with {len(tools)} tool(s)")
     
     def chatbot(state: State):
-        return {"messages": [llm_with_tools.invoke(state["messages"])]}
+        # Add system prompt as first message if not present
+        messages = state["messages"]
+        if not messages or not (hasattr(messages[0], 'type') and messages[0].type == "system"):
+            from langchain_core.messages import SystemMessage
+            messages = [SystemMessage(content=system_prompt)] + messages
+        return {"messages": [llm_with_tools.invoke(messages)]}
     
     # Add nodes (tutorial steps 4-5)
     graph_builder.add_node("chatbot", chatbot)
@@ -167,6 +190,8 @@ def _convert_to_ragas_messages(thread_id: str = DEFAULT_THREAD_ID):
     """
     Internal helper function to convert conversation to RAGAS format.
     
+    Filters out system messages and cleans content for RAGAS compatibility.
+    
     Returns:
         List of RAGAS message objects (ragas.messages.HumanMessage, AIMessage, ToolMessage)
     """
@@ -177,32 +202,83 @@ def _convert_to_ragas_messages(thread_id: str = DEFAULT_THREAD_ID):
     
     for message in messages:
         if hasattr(message, 'type'):
+            # Skip system messages as they can confuse RAGAS evaluation
+            if message.type == 'system':
+                continue
+                
             if message.type == 'human':
-                ragas_messages.append(RagasHumanMessage(content=message.content))
+                # Clean and normalize human message content
+                content = message.content.strip()
+                if content:  # Only add non-empty messages
+                    ragas_messages.append(RagasHumanMessage(content=content))
+                    
             elif message.type == 'ai':
+                # Clean and normalize AI message content
+                content = message.content.strip() if message.content else ""
+                
                 # Check if the AI message has tool calls
                 if hasattr(message, 'tool_calls') and message.tool_calls:
                     tool_calls = []
                     for tc in message.tool_calls:
-                        tool_calls.append(RagasToolCall(
-                            name=tc.get("name", ""),
-                            args=tc.get("args", {})
-                        ))
+                        # Ensure tool call data is properly formatted
+                        tool_name = tc.get("name", "") if isinstance(tc, dict) else getattr(tc, 'name', '')
+                        tool_args = tc.get("args", {}) if isinstance(tc, dict) else getattr(tc, 'args', {})
+                        
+                        # Only add valid tool calls
+                        if tool_name:
+                            tool_calls.append(RagasToolCall(
+                                name=str(tool_name),
+                                args=dict(tool_args) if tool_args else {}
+                            ))
+                    
+                    # Always add AI messages with tool calls, even if content is empty
+                    # This is required by RAGAS - ToolMessage must be preceded by AIMessage
                     ragas_messages.append(RagasAIMessage(
-                        content=message.content,
+                        content=content if content else "",
                         tool_calls=tool_calls
                     ))
                 else:
-                    ragas_messages.append(RagasAIMessage(content=message.content))
+                    # Only add AI messages with content
+                    if content:
+                        ragas_messages.append(RagasAIMessage(content=content))
+                        
             elif message.type == 'tool':
-                ragas_messages.append(RagasToolMessage(content=message.content))
+                # Clean tool message content and ensure it's properly formatted
+                content = message.content.strip() if message.content else ""
+                if content:
+                    # Ensure tool message content is a clean string, not complex JSON
+                    try:
+                        import json
+                        # If content is JSON, extract the key information for RAGAS
+                        if content.startswith('{') and content.endswith('}'):
+                            parsed = json.loads(content)
+                            # Extract main content, avoiding complex nested structures
+                            if 'query' in parsed and 'results' in parsed:
+                                # Summarize search results for RAGAS
+                                query = parsed.get('query', '')
+                                results_count = len(parsed.get('results', []))
+                                content = f"Search query: {query}, Found {results_count} results"
+                            elif isinstance(parsed, dict):
+                                # Extract first meaningful value
+                                content = str(list(parsed.values())[0]) if parsed else content
+                    except (json.JSONDecodeError, KeyError, IndexError):
+                        # Keep original content if JSON parsing fails
+                        pass
+                    
+                    ragas_messages.append(RagasToolMessage(content=content))
         else:
             # Fallback for messages that don't have a type attribute
             if hasattr(message, 'role'):
-                if message.role == 'user':
-                    ragas_messages.append(RagasHumanMessage(content=message.content))
-                elif message.role == 'assistant':
-                    ragas_messages.append(RagasAIMessage(content=message.content))
+                # Skip system role messages
+                if getattr(message, 'role', '') == 'system':
+                    continue
+                    
+                content = getattr(message, 'content', '').strip()
+                if content:  # Only add non-empty messages
+                    if message.role == 'user':
+                        ragas_messages.append(RagasHumanMessage(content=content))
+                    elif message.role == 'assistant':
+                        ragas_messages.append(RagasAIMessage(content=content))
     
     return ragas_messages
 
@@ -234,11 +310,51 @@ def getMultiTurnSampleConversation(thread_id: str = DEFAULT_THREAD_ID):
         print("❌ Ragas not available. Cannot convert to MultiTurnSample format.")
         return None
     
-    # Get the ragas-formatted messages
+    # Get the ragas-formatted messages with cleaned content
     ragas_messages = _convert_to_ragas_messages(thread_id)
     
+    # Validate that we have meaningful conversation data
+    if not ragas_messages:
+        print("⚠️  No valid messages found for RAGAS evaluation")
+        return None
+    
+    # Ensure proper message sequence for RAGAS 
+    validated_messages = []
+    for msg in ragas_messages:
+        try:
+            # Ensure message content is properly formatted string
+            if hasattr(msg, 'content'):
+                # Clean any problematic characters that might confuse RAGAS
+                content = str(msg.content).strip()
+                
+                # Create new message with cleaned content
+                if isinstance(msg, RagasHumanMessage):
+                    if content:  # Only add non-empty human messages
+                        validated_messages.append(RagasHumanMessage(content=content))
+                elif isinstance(msg, RagasAIMessage):
+                    # Preserve tool calls if present - ALWAYS add AI messages with tool calls
+                    if hasattr(msg, 'tool_calls') and msg.tool_calls:
+                        validated_messages.append(RagasAIMessage(
+                            content=content if content else "", 
+                            tool_calls=msg.tool_calls
+                        ))
+                    elif content:  # Only add AI messages without tool calls if they have content
+                        validated_messages.append(RagasAIMessage(content=content))
+                elif isinstance(msg, RagasToolMessage):
+                    if content:  # Only add non-empty tool messages
+                        validated_messages.append(RagasToolMessage(content=content))
+        except Exception as e:
+            print(f"⚠️  Skipping invalid message: {e}")
+            continue
+    
+    if not validated_messages:
+        print("⚠️  No valid messages after validation for RAGAS evaluation")
+        return None
+    
+    print(f"✅ Created MultiTurnSample with {len(validated_messages)} validated messages")
+    
     # Wrap in MultiTurnSample with user_input parameter
-    return MultiTurnSample(user_input=ragas_messages)
+    return MultiTurnSample(user_input=validated_messages)
 
 
 # Backward compatibility functions (deprecated - use getMultiTurnSampleConversation instead)
