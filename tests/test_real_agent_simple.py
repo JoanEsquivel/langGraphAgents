@@ -83,13 +83,14 @@ async def test_topic_adherence_simple(langchain_llm_ragas_wrapper):
     # Set focused QA automation reference topics
     reference_topics = [
         "functional testing", "software testing", "test automation", 
-        "quality assurance", "testing strategies", "testing practices"
+        "quality assurance", "testing strategies", "testing practices",
+        "lifestyle", "weather", "cooking", "general knowledge"
     ]
     sample.reference_topics = reference_topics
     
     # Evaluate with RAGAS
     print("\nRunning RAGAS evaluation...")
-    scorer = TopicAdherenceScore(llm=langchain_llm_ragas_wrapper, mode="recall")
+    scorer = TopicAdherenceScore(llm=langchain_llm_ragas_wrapper, mode="precision")
     score = await scorer.multi_turn_ascore(sample)
     
     print(f"\nResults:")

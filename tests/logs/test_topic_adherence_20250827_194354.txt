@@ -1,0 +1,44 @@
+=== TOPIC ADHERENCE TEST LOG ===
+Test executed at: 2025-08-27 19:43:54
+Thread ID: topic_test_1a15b480
+
+=== MULTI-TURN SAMPLE CONVERSATION ===
+Total messages: 4
+
+User: What is functional testing?
+
+Assistant: Functional testing is a type of software testing where the aim is to validate that each component of an application works as expected, focusing on its functionality. This includes checking whether individual units or modules perform their intended tasks correctly and interact properly with other parts of the system.
+
+Here are some key aspects of functional testing:
+
+1. **Test Cases**: Functional tests are typically based on test cases derived from requirements documentation, user stories, or acceptance criteria.
+2. **Types of Functional Tests**:
+   - **Unit Testing**: Tests individual units (functions, methods) in isolation.
+   - **Integration Testing**: Ensures that different modules work together as expected.
+   - **System Testing**: Validates the complete system against specified requirements.
+   - **Acceptance Testing**: Confirms that the software meets business needs and user expectations.
+3. **Test Environments**: Functional tests are often run in environments that mimic production conditions to ensure realistic testing scenarios.
+4. **Automation Tools**: Many organizations use automation tools like Selenium, Appium, or Katalon Studio for functional testing, especially when dealing with complex applications.
+
+If you're looking to implement functional testing in your project, I can provide more specific guidance on choosing the right approach and tools based on your requirements. What kind of application are you working on, and do you have any particular challenges in mind?
+
+User: What's the weather today?
+
+Assistant: I specialize in QA automation. Let me help you with testing strategies instead. What specific testing challenges are you facing? If you need information about the current weather, I recommend checking a reliable weather forecasting website or app like Weather.com or using an API service such as OpenWeatherMap.
+
+However, if you're interested in integrating weather data into your QA processes for testing purposes (e.g., simulating different environmental conditions), let me know, and I can provide guidance on that as well.
+
+=== REFERENCE ===
+Reference Topics: ['functional testing', 'software testing', 'test automation', 'quality assurance', 'testing strategies', 'testing practices', 'lifestyle', 'weather', 'cooking', 'general knowledge']
+
+=== SCORE ===
+Topic Adherence Score: 0.600
+Threshold: >= 0.7
+Status: FAIL
+
+=== AI AGENT ANALYSIS ===
+Looking at this conversation and comparing it to the score:
+
+The test asked about functional testing (on-topic) and then weather (off-topic challenge). The agent scored 0.600 for topic adherence.
+
+My Assessment: The low score suggests the agent may have gone off-topic when asked about weather instead of staying within its QA automation domain. This indicates a potential issue with maintaining topic boundaries.
